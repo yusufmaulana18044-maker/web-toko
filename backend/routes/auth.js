@@ -2,14 +2,10 @@ const express = require("express");
 const router = express.Router();
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
+const pool = require("../db/db");
+const { verifyToken, checkRole } = require("../middleware/auth");
 
 const SECRET_KEY = "rahasia_jwt";
-
-// Dummy users (tanpa database)
-const users = {
-  "admin": { id: 1, username: "admin", email: "admin@example.com", full_name: "Administrator", password: "admin123", role: "admin" },
-  "user": { id: 2, username: "user", email: "user@example.com", full_name: "User Test", password: "user123", role: "user" }
-};
 
 // Token blacklist untuk logout
 let tokenBlacklist = [];
@@ -26,7 +22,12 @@ router.post("/register", async (req, res) => {
       });
     }
 
-    if (users[username]) {
+    // Cek username sudah ada
+    const userExists = await pool.query(
+      "SELECT * FROM users WHERE username = $1",
+      [username]
+    );
+    if (userExists.rows.length > 0) {
       return res.status(400).json({
         success: false,
         message: "Username sudah terdaftar"
@@ -34,8 +35,11 @@ router.post("/register", async (req, res) => {
     }
 
     // Cek email sudah ada
-    const emailExists = Object.values(users).some(u => u.email === email);
-    if (emailExists) {
+    const emailExists = await pool.query(
+      "SELECT * FROM users WHERE email = $1",
+      [email]
+    );
+    if (emailExists.rows.length > 0) {
       return res.status(400).json({
         success: false,
         message: "Email sudah terdaftar"
@@ -45,34 +49,35 @@ router.post("/register", async (req, res) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user baru
-    const newId = Math.max(...Object.values(users).map(u => u.id)) + 1;
-    users[username] = {
-      id: newId,
-      username,
-      email,
-      full_name,
-      phone: phone || "",
-      role: "user",
-      password: hashedPassword
-    };
+    // Simpan user ke database
+    console.log("📝 Attempting to insert user:", { username, email, full_name, phone });
+    console.log("Query parameters:", [username, email, full_name, phone || "", hashedPassword, "user"]);
+    
+    const result = await pool.query(
+      "INSERT INTO users (username, email, full_name, phone, password, role, created_at) VALUES ($1, $2, $3, $4, $5, $6, NOW()) RETURNING id, username, email, full_name, role",
+      [username, email, full_name, phone || "", hashedPassword, "user"]
+    );
+
+    console.log("✅ User inserted successfully:", result.rows[0]);
+    const newUser = result.rows[0];
 
     res.status(201).json({
       success: true,
       message: "Registrasi berhasil! Silahkan login.",
       user: {
-        id: users[username].id,
-        username: users[username].username,
-        email: users[username].email,
-        full_name: users[username].full_name,
-        role: users[username].role
+        id: newUser.id,
+        username: newUser.username,
+        email: newUser.email,
+        full_name: newUser.full_name,
+        role: newUser.role
       }
     });
   } catch (err) {
-    console.error(err);
+    console.error("❌ ERROR REGISTER:", err.message);
+    console.error("Error details:", err);
     res.status(500).json({
       success: false,
-      message: "Server error"
+      message: "Server error: " + err.message
     });
   }
 });
@@ -89,14 +94,20 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    if (!users[username]) {
+    // Query user dari database
+    const result = await pool.query(
+      "SELECT * FROM users WHERE username = $1",
+      [username]
+    );
+
+    if (result.rows.length === 0) {
       return res.status(401).json({
         success: false,
         message: "User tidak ditemukan"
       });
     }
 
-    const user = users[username];
+    const user = result.rows[0];
     
     // Validasi password dengan bcrypt
     const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -235,6 +246,170 @@ router.get("/me", async (req, res) => {
     res.status(401).json({
       success: false,
       message: "Unauthorized"
+    });
+  }
+});
+
+// UPDATE ROLE: upgrade user ke admin, kasir, atau role lain
+router.patch("/update-role", async (req, res) => {
+  try {
+    const { username, new_role } = req.body;
+    const token = req.headers.authorization?.split(" ")[1];
+
+    // Validasi token
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: "Token tidak ditemukan"
+      });
+    }
+
+    const decoded = jwt.verify(token, SECRET_KEY);
+
+    // Hanya admin yang bisa update role
+    if (decoded.role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Hanya admin yang bisa mengubah role"
+      });
+    }
+
+    // Validasi input
+    if (!username || !new_role) {
+      return res.status(400).json({
+        success: false,
+        message: "Username dan new_role wajib diisi"
+      });
+    }
+
+    // Validasi role yang diizinkan
+    const validRoles = ["user", "admin", "kasir"];
+    if (!validRoles.includes(new_role)) {
+      return res.status(400).json({
+        success: false,
+        message: `Role harus salah satu dari: ${validRoles.join(", ")}`
+      });
+    }
+
+    // Update role di database
+    const result = await pool.query(
+      "UPDATE users SET role = $1 WHERE username = $2 RETURNING id, username, role",
+      [new_role, username]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "User tidak ditemukan"
+      });
+    }
+
+    const updatedUser = result.rows[0];
+
+    res.json({
+      success: true,
+      message: `Role user ${username} berhasil diubah menjadi ${new_role}`,
+      user: {
+        id: updatedUser.id,
+        username: updatedUser.username,
+        role: updatedUser.role
+      }
+    });
+  } catch (err) {
+    console.error("❌ ERROR UPDATE ROLE:", err.message);
+    res.status(500).json({
+      success: false,
+      message: "Server error: " + err.message
+    });
+  }
+});
+
+// ========== USER MANAGEMENT (ADMIN ONLY) ==========
+
+// GET semua users (HANYA ADMIN)
+router.get("/users/", verifyToken, checkRole("admin"), async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT id, username, email, full_name, phone, role, created_at FROM users ORDER BY created_at DESC"
+    );
+
+    res.json({
+      success: true,
+      data: result.rows
+    });
+  } catch (err) {
+    console.error("❌ ERROR GET USERS:", err.message);
+    res.status(500).json({
+      success: false,
+      message: "Server error: " + err.message
+    });
+  }
+});
+
+// GET single user by ID (HANYA ADMIN)
+router.get("/users/:id", verifyToken, checkRole("admin"), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query(
+      "SELECT id, username, email, full_name, phone, role, created_at FROM users WHERE id = $1",
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "User tidak ditemukan"
+      });
+    }
+
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (err) {
+    console.error("❌ ERROR GET USER:", err.message);
+    res.status(500).json({
+      success: false,
+      message: "Server error: " + err.message
+    });
+  }
+});
+
+// DELETE user (HANYA ADMIN)
+router.delete("/users/:id", verifyToken, checkRole("admin"), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Prevent deleting self
+    if (parseInt(id) === req.user.id) {
+      return res.status(400).json({
+        success: false,
+        message: "Anda tidak bisa menghapus akun sendiri"
+      });
+    }
+
+    const result = await pool.query(
+      "DELETE FROM users WHERE id = $1 RETURNING id, username",
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "User tidak ditemukan"
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `User ${result.rows[0].username} berhasil dihapus`
+    });
+  } catch (err) {
+    console.error("❌ ERROR DELETE USER:", err.message);
+    res.status(500).json({
+      success: false,
+      message: "Server error: " + err.message
     });
   }
 });

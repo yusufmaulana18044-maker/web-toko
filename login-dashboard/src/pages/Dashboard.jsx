@@ -149,9 +149,9 @@ function Dashboard() {
   const filteredBooks = books.filter((book) => {
     const matchesSearch = book.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       book.author?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      book.category_name?.toLowerCase().includes(searchTerm.toLowerCase());
+      book.category?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesCategory = !selectedCategory || book.category_name === selectedCategory;
+    const matchesCategory = !selectedCategory || book.category === selectedCategory;
     
     return matchesSearch && matchesCategory;
   });
@@ -217,6 +217,11 @@ function Dashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ items: cart, total: totalPrice })
       });
+
+      if (!response.ok) {
+        throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
+      }
+
       const result = await response.json();
       const order = result.data || result;
       navigate("/receipt", {
@@ -389,7 +394,7 @@ function Dashboard() {
                       className="book-cover"
                     />
                     <span className="category-badge">
-                      {book.category_name}
+                      {book.category}
                     </span>
                   </div>
 

@@ -1,62 +1,34 @@
 const express = require("express");
 const router = express.Router();
+const pool = require("../db/db");
+const { verifyToken, checkRole } = require("../middleware/auth");
 
-// GET semua transactions (admin melihat semua, user melihat milik sendiri)
-router.get("/", async (req, res) => {
+// GET semua transactions (kasir lihat semua, user lihat milik sendiri)
+router.get("/", verifyToken, async (req, res) => {
   try {
-    const transactions = [
-      {
-        id: 1,
-        user_id: 2,
-        transaction_code: "TRX-001-2026",
-        total_amount: 150000,
-        status: "pending",
-        payment_method: "transfer",
-        shipping_address: "Jl. Merdeka No.123, Jakarta",
-        items: [
-          {
-            id: 1,
-            product_id: 1,
-            quantity: 2,
-            unit_price: 75000,
-            subtotal: 150000
-          }
-        ],
-        created_at: "2026-02-05T10:30:00Z",
-        updated_at: "2026-02-05T10:30:00Z"
-      },
-      {
-        id: 2,
-        user_id: 2,
-        transaction_code: "TRX-002-2026",
-        total_amount: 130000,
-        status: "paid",
-        payment_method: "cash",
-        shipping_address: "Jl. Merdeka No.123, Jakarta",
-        items: [
-          {
-            id: 2,
-            product_id: 3,
-            quantity: 1,
-            unit_price: 80000,
-            subtotal: 80000
-          },
-          {
-            id: 3,
-            product_id: 5,
-            quantity: 1,
-            unit_price: 50000,
-            subtotal: 50000
-          }
-        ],
-        created_at: "2026-02-04T15:45:00Z",
-        updated_at: "2026-02-04T16:20:00Z"
-      }
-    ];
+    // Admin tidak boleh akses transaksi
+    if (req.user.role === "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Admin tidak memiliki akses ke transaksi management"
+      });
+    }
 
+    let query = "SELECT * FROM transactions ORDER BY created_at DESC";
+    let params = [];
+
+    // Filter berdasarkan role
+    if (req.user.role === "user") {
+      query = "SELECT * FROM transactions WHERE user_id = $1 ORDER BY created_at DESC";
+      params = [req.user.id];
+    }
+    // Kasir bisa lihat semua transaksi
+
+    const result = await pool.query(query, params);
+    
     res.json({
       success: true,
-      data: transactions
+      data: result.rows
     });
   } catch (error) {
     console.error(error);
@@ -68,32 +40,39 @@ router.get("/", async (req, res) => {
 });
 
 // GET transaction by ID
-router.get("/:id", async (req, res) => {
+router.get("/:id", verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
+    
+    const result = await pool.query(
+      "SELECT * FROM transactions WHERE id = $1",
+      [id]
+    );
 
-    const transaction = {
-      id: parseInt(id),
-      user_id: 2,
-      transaction_code: `TRX-${id.padStart(3, "0")}-2026`,
-      total_amount: 150000,
-      status: "pending",
-      payment_method: "transfer",
-      shipping_address: "Jl. Merdeka No.123, Jakarta",
-      notes: "Mohon dibungkus rapi",
-      items: [
-        {
-          id: 1,
-          product_id: 1,
-          product_name: "Cerita Rakyat Nusantara",
-          quantity: 2,
-          unit_price: 75000,
-          subtotal: 150000
-        }
-      ],
-      created_at: "2026-02-05T10:30:00Z",
-      updated_at: "2026-02-05T10:30:00Z"
-    };
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Transaksi tidak ditemukan"
+      });
+    }
+
+    const transaction = result.rows[0];
+
+    // Validasi akses: user hanya lihat miliknya, kasir bisa lihat semua
+    if (req.user.role === "user" && transaction.user_id !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: "Anda hanya bisa melihat transaksi milik sendiri"
+      });
+    }
+
+    // Admin tidak boleh akses
+    if (req.user.role === "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Admin tidak memiliki akses ke transaksi management"
+      });
+    }
 
     res.json({
       success: true,
@@ -108,56 +87,60 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// POST create new transaction
-router.post("/", async (req, res) => {
+// POST create new transaction by kasir
+router.post("/", verifyToken, checkRole("kasir"), async (req, res) => {
   try {
-    const { user_id, items, shipping_address, payment_method, notes } = req.body;
+    const { user_id, items, total_amount, payment_method, shipping_address, notes } = req.body;
 
-    if (!user_id || !items || items.length === 0 || !shipping_address) {
+    if (!user_id || !items || items.length === 0 || !total_amount) {
       return res.status(400).json({
         success: false,
-        message: "user_id, items, dan shipping_address wajib diisi"
+        message: "user_id, items, dan total_amount wajib diisi"
       });
     }
 
-    // Calculate total amount
-    const total_amount = items.reduce((sum, item) => sum + item.subtotal, 0);
+    // Generate transaction code
+    const timestamp = Date.now();
+    const transaction_code = `TRX-${timestamp}-${req.user.id}`;
 
-    const newTransaction = {
-      id: Date.now(),
-      user_id,
-      transaction_code: `TRX-${Date.now()}-2026`,
-      total_amount,
-      status: "pending",
-      payment_method: payment_method || "pending",
-      shipping_address,
-      notes,
-      items,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
+    const result = await pool.query(
+      `INSERT INTO transactions 
+       (user_id, transaction_code, items, total_amount, status, payment_method, shipping_address, notes, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+       RETURNING *`,
+      [
+        user_id,
+        transaction_code,
+        JSON.stringify(items),
+        total_amount,
+        'completed',
+        payment_method || 'cash',
+        shipping_address || '',
+        notes || ''
+      ]
+    );
 
     res.status(201).json({
       success: true,
       message: "Transaksi berhasil dibuat",
-      data: newTransaction
+      data: result.rows[0]
     });
   } catch (error) {
     console.error(error);
     res.status(500).json({
       success: false,
-      message: "Server error"
+      message: "Server error: " + error.message
     });
   }
 });
 
-// PUT update transaction status
-router.put("/:id", async (req, res) => {
+// PUT update transaction status by kasir
+router.put("/:id", verifyToken, checkRole("kasir"), async (req, res) => {
   try {
     const { id } = req.params;
     const { status, payment_method, notes } = req.body;
 
-    const validStatus = ["pending", "paid", "shipped", "delivered", "cancelled"];
+    const validStatus = ["pending", "paid", "shipped", "delivered", "cancelled", "completed"];
     
     if (status && !validStatus.includes(status)) {
       return res.status(400).json({
@@ -166,50 +149,32 @@ router.put("/:id", async (req, res) => {
       });
     }
 
-    const updatedTransaction = {
-      id: parseInt(id),
-      user_id: 2,
-      transaction_code: `TRX-${id.padStart(3, "0")}-2026`,
-      total_amount: 150000,
-      status: status || "pending",
-      payment_method: payment_method || "transfer",
-      shipping_address: "Jl. Merdeka No.123, Jakarta",
-      notes,
-      items: [
-        {
-          id: 1,
-          product_id: 1,
-          quantity: 2,
-          unit_price: 75000,
-          subtotal: 150000
-        }
-      ],
-      created_at: "2026-02-05T10:30:00Z",
-      updated_at: new Date().toISOString()
-    };
+    // Cek transaksi exists
+    const checkResult = await pool.query("SELECT * FROM transactions WHERE id = $1", [id]);
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Transaksi tidak ditemukan"
+      });
+    }
+
+    const currentTransaction = checkResult.rows[0];
+    
+    const result = await pool.query(
+      `UPDATE transactions 
+       SET status = COALESCE($1, status),
+           payment_method = COALESCE($2, payment_method),
+           notes = COALESCE($3, notes),
+           updated_at = NOW()
+       WHERE id = $4
+       RETURNING *`,
+      [status || null, payment_method || null, notes || null, id]
+    );
 
     res.json({
       success: true,
       message: "Transaksi berhasil diupdate",
-      data: updatedTransaction
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({
-      success: false,
-      message: "Server error"
-    });
-  }
-});
-
-// DELETE cancel transaction
-router.delete("/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    res.json({
-      success: true,
-      message: "Transaksi berhasil dibatalkan"
+      data: result.rows[0]
     });
   } catch (error) {
     console.error(error);

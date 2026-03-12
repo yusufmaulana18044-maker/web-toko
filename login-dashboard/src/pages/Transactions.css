@@ -1,0 +1,171 @@
+.transactions-wrapper {
+  padding: 20px;
+  background-color: #f5f5f5;
+  min-height: calc(100vh - 60px);
+}
+
+.transactions-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  background: white;
+  border-radius: 8px;
+  padding: 30px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.transactions-header {
+  margin-bottom: 30px;
+}
+
+.transactions-header h1 {
+  font-size: 28px;
+  color: #333;
+  margin: 0 0 5px 0;
+}
+
+.subtitle {
+  color: #666;
+  font-size: 14px;
+  margin: 0;
+}
+
+/* Filter Buttons */
+.filter-buttons {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 25px;
+  flex-wrap: wrap;
+}
+
+.filter-btn {
+  padding: 8px 16px;
+  border: 2px solid #ddd;
+  background: white;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  color: #666;
+}
+
+.filter-btn:hover {
+  border-color: #2196f3;
+  color: #2196f3;
+}
+
+.filter-btn.active {
+  background: #2196f3;
+  color: white;
+  border-color: #2196f3;
+}
+
+/* Table */
+.transactions-table-wrapper {
+  overflow-x: auto;
+}
+
+.transactions-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.transactions-table thead {
+  background-color: #f9f9f9;
+}
+
+.transactions-table th {
+  padding: 15px;
+  text-align: left;
+  font-weight: 600;
+  color: #333;
+  border-bottom: 2px solid #ddd;
+}
+
+.transactions-table td {
+  padding: 15px;
+  border-bottom: 1px solid #eee;
+  color: #666;
+}
+
+.transactions-table td.amount {
+  font-weight: 600;
+  color: #2196f3;
+}
+
+.transactions-table tr:hover {
+  background-color: #f9f9f9;
+}
+
+/* Status Badge */
+.status-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 20px;
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Detail Button */
+.detail-btn {
+  padding: 8px 16px;
+  background: #2196f3;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: background 0.3s ease;
+}
+
+.detail-btn:hover {
+  background: #1976d2;
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.empty-icon {
+  font-size: 64px;
+  margin-bottom: 15px;
+}
+
+.empty-state p {
+  font-size: 18px;
+  color: #333;
+  margin: 0 0 5px 0;
+}
+
+.empty-state small {
+  color: #999;
+  font-size: 14px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .transactions-container {
+    padding: 15px;
+  }
+
+  .transactions-header h1 {
+    font-size: 24px;
+  }
+
+  .transactions-table {
+    font-size: 12px;
+  }
+
+  .transactions-table th,
+  .transactions-table td {
+    padding: 10px 5px;
+  }
+
+  .filter-buttons {
+    justify-content: center;
+  }
+}

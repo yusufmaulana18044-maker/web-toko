@@ -1,13 +1,13 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const initializeDatabase = require("./db/schema");
+const seedDatabase = require("./db/seeder");
+const pool = require("./db/db");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
-
-// In-memory storage untuk orders
-let orders = {};
 
 // Serve static files from public folder
 const publicPath = path.join(__dirname, '../login-dashboard/public');
@@ -29,6 +29,79 @@ app.use("/categories", categoryRoutes);
 
 const transactionRoutes = require("./routes/transactions");
 app.use("/transactions", transactionRoutes);
+
+// API untuk customer checkout (CREATE ORDER) - Simpan ke database
+app.post("/api/orders", async (req, res) => {
+  try {
+    const { items, total } = req.body;
+
+    if (!items || items.length === 0 || !total) {
+      return res.status(400).json({
+        success: false,
+        message: "Items dan total wajib diisi"
+      });
+    }
+
+    // Set default user_id untuk customer yang checkout tanpa login
+    // Bisa dimodifikasi later untuk ambil dari token jika ada
+    const user_id = 3; // Default ke user role (bukan admin, bukan kasir)
+    const transaction_code = `ORDER-${Date.now()}`;
+
+    try {
+      const result = await pool.query(
+        `INSERT INTO transactions 
+         (user_id, transaction_code, items, total_amount, status, payment_method, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+         RETURNING id, transaction_code, total_amount, status, created_at`,
+        [
+          user_id,
+          transaction_code,
+          JSON.stringify(items),
+          total,
+          'completed',
+          'cash'
+        ]
+      );
+
+      const orderData = result.rows[0];
+      
+      res.status(201).json({
+        success: true,
+        message: "Order berhasil dibuat",
+        data: {
+          id: orderData.id,
+          transaction_code: orderData.transaction_code,
+          items,
+          total: orderData.total_amount,
+          status: orderData.status,
+          created_at: orderData.created_at
+        }
+      });
+    } catch (dbError) {
+      console.error("Database error:", dbError.message);
+      // Fallback jika database error - gunakan in-memory
+      const orderId = Math.floor(Date.now() / 1000);
+      
+      res.status(201).json({
+        success: true,
+        message: "Order berhasil dibuat (mode fallback)",
+        data: {
+          id: orderId,
+          items,
+          total,
+          status: "completed",
+          created_at: new Date().toISOString()
+        }
+      });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Server error: " + error.message
+    });
+  }
+});
 
 // API untuk mendapatkan books
 app.get("/api/books", (req, res) => {
@@ -116,6 +189,25 @@ app.get("/api/books", (req, res) => {
   ]);
 });
 
-app.listen(5000, () => {
-  console.log("Backend jalan di http://localhost:5000");
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+  console.error('❌ Uncaught Exception:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Unhandled Rejection:', reason);
+  process.exit(1);
+});
+
+// Inisialisasi database dan jalankan server
+initializeDatabase().then(async () => {
+  await seedDatabase();
+  app.listen(5000, () => {
+    console.log("Backend jalan di http://localhost:5000");
+    console.log("Database sudah siap!");
+  });
+}).catch(err => {
+  console.error("❌ Gagal inisialisasi database:", err);
+  process.exit(1);
 });

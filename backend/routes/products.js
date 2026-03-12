@@ -1,95 +1,117 @@
 const express = require("express");
 const router = express.Router();
+const pool = require("../db/db");
+const { verifyToken, checkRole } = require("../middleware/auth");
 
-// GET semua buku (dari dummy data, bukan database)
+// GET semua buku (PUBLIC - tidak perlu login)
 router.get("/", async (req, res) => {
   try {
-    const books = [
-      {
-        id: 1,
-        title: "Cerita Rakyat Nusantara",
-        author: "Murti Bunanta",
-        category_name: "Cerita Rakyat",
-        price: 75000,
-        image: "/images/book-1.jpg"
-      },
-      {
-        id: 2,
-        title: "Si Kancil Penggalau",
-        author: "Suwardi",
-        category_name: "Fabel",
-        price: 65000,
-        image: "/images/book-2.jpg"
-      },
-      {
-        id: 3,
-        title: "Legenda Bukit Merah",
-        author: "Suciwati",
-        category_name: "Legenda",
-        price: 80000,
-        image: "/images/book-3.jpg"
-      },
-      {
-        id: 4,
-        title: "Petualangan Anak Negeri",
-        author: "Seno Gumira Ajidarma",
-        category_name: "Petualangan",
-        price: 90000,
-        image: "/images/book-4.jpg"
-      },
-      {
-        id: 5,
-        title: "Dongeng Sebelum Tidur",
-        author: "Harun Erwin",
-        category_name: "Dongeng",
-        price: 70000,
-        image: "/images/book-5.jpg"
-      },
-      {
-        id: 6,
-        title: "Kisah Panjang Emas",
-        author: "Sri Dewi",
-        category_name: "Fantasi",
-        price: 95000,
-        image: "/images/book-6.jpg"
-      },
-      {
-        id: 7,
-        title: "Pangeran Diponegoro",
-        author: "Langit Kresna Hariyadhi",
-        category_name: "Sejarah",
-        price: 85000,
-        image: "/images/book-7.jpg"
-      },
-      {
-        id: 8,
-        title: "Putri Duyung Laut Jawa",
-        author: "Wiratno Hadiwinoto",
-        category_name: "Mitos",
-        price: 78000,
-        image: "/images/book-8.jpg"
-      },
-      {
-        id: 9,
-        title: "Timun Mas dan Raksasa",
-        author: "Bambang Sugiharto",
-        category_name: "Cerita Rakyat",
-        price: 72000,
-        image: "/images/book-9.jpg"
-      },
-      {
-        id: 10,
-        title: "Sang Malin Kundang",
-        author: "Awang Rasyid",
-        category_name: "Legenda",
-        price: 82000,
-        image: "/images/book-10.jpg"
-      }
-    ];
-    res.json(books);
+    const result = await pool.query("SELECT * FROM products ORDER BY id ASC");
+    res.json(result.rows);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error" });
+  }
+});
+
+// POST - Create produk (HANYA ADMIN)
+router.post("/", verifyToken, checkRole("admin"), async (req, res) => {
+  try {
+    const { title, author, category, price, image } = req.body;
+
+    if (!title || !author || !category || !price) {
+      return res.status(400).json({
+        success: false,
+        message: "Title, author, category, dan price wajib diisi"
+      });
+    }
+
+    const result = await pool.query(
+      "INSERT INTO products (title, author, category, price, image, created_at) VALUES ($1, $2, $3, $4, $5, NOW()) RETURNING *",
+      [title, author, category, parseInt(price), image]
+    );
+
+    res.status(201).json({
+      success: true,
+      message: "Produk berhasil ditambahkan",
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Server error"
+    });
+  }
+});
+
+// PUT - Update produk (HANYA ADMIN)
+router.put("/:id", verifyToken, checkRole("admin"), async (req, res) => {
+  try {
+    const { title, author, category, price, image } = req.body;
+    const { id } = req.params;
+
+    if (!title || !author || !category || !price) {
+      return res.status(400).json({
+        success: false,
+        message: "Title, author, category, dan price wajib diisi"
+      });
+    }
+
+    const result = await pool.query(
+      "UPDATE products SET title = $1, author = $2, category = $3, price = $4, image = $5 WHERE id = $6 RETURNING *",
+      [title, author, category, parseInt(price), image, parseInt(id)]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Produk tidak ditemukan"
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Produk berhasil diupdate`,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Server error"
+    });
+  }
+});
+
+// DELETE - Hapus produk (HANYA ADMIN)
+router.delete("/:id", verifyToken, checkRole("admin"), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query(
+      "DELETE FROM products WHERE id = $1 RETURNING *",
+      [parseInt(id)]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Produk tidak ditemukan"
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Produk berhasil dihapus`,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Server error"
+    });
   }
 });
 

@@ -1,62 +1,15 @@
 const express = require("express");
 const router = express.Router();
+const pool = require("../db/db");
+const { verifyToken, checkRole } = require("../middleware/auth");
 
-// GET semua categories
+// GET semua categories (PUBLIC - tidak perlu login)
 router.get("/", async (req, res) => {
   try {
-    const categories = [
-      {
-        id: 1,
-        name: "Cerita Rakyat",
-        slug: "cerita-rakyat",
-        description: "Koleksi cerita rakyat tradisional Indonesia"
-      },
-      {
-        id: 2,
-        name: "Fabel",
-        slug: "fabel",
-        description: "Cerita fabel dengan pesan moral"
-      },
-      {
-        id: 3,
-        name: "Legenda",
-        slug: "legenda",
-        description: "Kisah legenda dan mitos lokal"
-      },
-      {
-        id: 4,
-        name: "Petualangan",
-        slug: "petualangan",
-        description: "Cerita petualangan yang seru"
-      },
-      {
-        id: 5,
-        name: "Dongeng",
-        slug: "dongeng",
-        description: "Dongeng anak-anak sebelum tidur"
-      },
-      {
-        id: 6,
-        name: "Fantasi",
-        slug: "fantasi",
-        description: "Cerita fantasi dan imajinasi"
-      },
-      {
-        id: 7,
-        name: "Sejarah",
-        slug: "sejarah",
-        description: "Kisah sejarah dan tokoh bersejarah"
-      },
-      {
-        id: 8,
-        name: "Mitos",
-        slug: "mitos",
-        description: "Cerita mitos dan kepercayaan lokal"
-      }
-    ];
+    const result = await pool.query("SELECT * FROM categories ORDER BY id ASC");
     res.json({
       success: true,
-      data: categories
+      data: result.rows
     });
   } catch (error) {
     console.error(error);
@@ -72,30 +25,12 @@ router.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;
     
-    const categories = [
-      {
-        id: 1,
-        name: "Cerita Rakyat",
-        slug: "cerita-rakyat",
-        description: "Koleksi cerita rakyat tradisional Indonesia"
-      },
-      {
-        id: 2,
-        name: "Fabel",
-        slug: "fabel",
-        description: "Cerita fabel dengan pesan moral"
-      },
-      {
-        id: 3,
-        name: "Legenda",
-        slug: "legenda",
-        description: "Kisah legenda dan mitos lokal"
-      }
-    ];
-
-    const category = categories.find(c => c.id === parseInt(id));
+    const result = await pool.query(
+      "SELECT * FROM categories WHERE id = $1",
+      [parseInt(id)]
+    );
     
-    if (!category) {
+    if (result.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: "Category tidak ditemukan"
@@ -104,7 +39,7 @@ router.get("/:id", async (req, res) => {
 
     res.json({
       success: true,
-      data: category
+      data: result.rows[0]
     });
   } catch (error) {
     console.error(error);
@@ -115,8 +50,8 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// POST create category (admin only)
-router.post("/", async (req, res) => {
+// POST create category (HANYA ADMIN)
+router.post("/", verifyToken, checkRole("admin"), async (req, res) => {
   try {
     const { name, slug, description } = req.body;
 
@@ -127,17 +62,28 @@ router.post("/", async (req, res) => {
       });
     }
 
-    const newCategory = {
-      id: Date.now(),
-      name,
-      slug,
-      description
-    };
+    // Check if slug already exists
+    const checkResult = await pool.query(
+      "SELECT id FROM categories WHERE slug = $1",
+      [slug]
+    );
+
+    if (checkResult.rows.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Slug sudah digunakan"
+      });
+    }
+
+    const result = await pool.query(
+      "INSERT INTO categories (name, slug, description, created_at) VALUES ($1, $2, $3, NOW()) RETURNING *",
+      [name, slug, description]
+    );
 
     res.status(201).json({
       success: true,
       message: "Category berhasil dibuat",
-      data: newCategory
+      data: result.rows[0]
     });
   } catch (error) {
     console.error(error);
@@ -148,8 +94,8 @@ router.post("/", async (req, res) => {
   }
 });
 
-// PUT update category (admin only)
-router.put("/:id", async (req, res) => {
+// PUT update category (HANYA ADMIN)
+router.put("/:id", verifyToken, checkRole("admin"), async (req, res) => {
   try {
     const { id } = req.params;
     const { name, slug, description } = req.body;
@@ -161,17 +107,35 @@ router.put("/:id", async (req, res) => {
       });
     }
 
-    const updatedCategory = {
-      id: parseInt(id),
-      name,
-      slug,
-      description
-    };
+    // Check if slug already exists (in other categories)
+    const checkResult = await pool.query(
+      "SELECT id FROM categories WHERE slug = $1 AND id != $2",
+      [slug, parseInt(id)]
+    );
+
+    if (checkResult.rows.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Slug sudah digunakan"
+      });
+    }
+
+    const result = await pool.query(
+      "UPDATE categories SET name = $1, slug = $2, description = $3 WHERE id = $4 RETURNING *",
+      [name, slug, description, parseInt(id)]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Category tidak ditemukan"
+      });
+    }
 
     res.json({
       success: true,
       message: "Category berhasil diupdate",
-      data: updatedCategory
+      data: result.rows[0]
     });
   } catch (error) {
     console.error(error);
@@ -182,14 +146,27 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-// DELETE category (admin only)
-router.delete("/:id", async (req, res) => {
+// DELETE category (HANYA ADMIN)
+router.delete("/:id", verifyToken, checkRole("admin"), async (req, res) => {
   try {
     const { id } = req.params;
 
+    const result = await pool.query(
+      "DELETE FROM categories WHERE id = $1 RETURNING *",
+      [parseInt(id)]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Category tidak ditemukan"
+      });
+    }
+
     res.json({
       success: true,
-      message: "Category berhasil dihapus"
+      message: "Category berhasil dihapus",
+      data: result.rows[0]
     });
   } catch (error) {
     console.error(error);

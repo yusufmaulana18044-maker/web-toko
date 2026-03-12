@@ -1,12 +1,77 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import "./Receipt.css";
 
 function Receipt() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { orderId, items, total } = location.state || {};
+  const { orderId, items: initialItems, total: initialTotal } = location.state || {};
+  
   const [isPrinting, setIsPrinting] = useState(false);
+  const [items, setItems] = useState(initialItems || []);
+  const [total, setTotal] = useState(initialTotal || 0);
+  const [loading, setLoading] = useState(true);
+  const [transactionData, setTransactionData] = useState(null);
+
+  // Fetch transaction dari database berdasarkan orderId
+  useEffect(() => {
+    if (!orderId) {
+      setLoading(false);
+      return;
+    }
+
+    const fetchTransaction = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        
+        // Jika ada token, coba fetch dari database
+        if (token) {
+          const response = await fetch(`http://localhost:5000/transactions/${orderId}`, {
+            headers: {
+              "Authorization": `Bearer ${token}`
+            }
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.data) {
+              setTransactionData(data.data);
+              // Parse items dari database jika ada
+              if (data.data.items) {
+                if (typeof data.data.items === 'string') {
+                  setItems(JSON.parse(data.data.items));
+                } else {
+                  setItems(data.data.items);
+                }
+              } else if (initialItems) {
+                setItems(initialItems);
+              }
+              // Set total dari database
+              if (data.data.total_amount) {
+                setTotal(data.data.total_amount);
+              }
+              setLoading(false);
+              return;
+            }
+          }
+        }
+        
+        // Jika fetch gagal atau tidak ada token, gunakan data dari location.state
+        console.log("Menggunakan data dari cache (location.state)");
+        if (initialItems) setItems(initialItems);
+        if (initialTotal) setTotal(initialTotal);
+        setLoading(false);
+      } catch (error) {
+        console.error("Error fetching transaction:", error);
+        // Fallback ke data dari location.state
+        if (initialItems) setItems(initialItems);
+        if (initialTotal) setTotal(initialTotal);
+        setLoading(false);
+      }
+    };
+
+    fetchTransaction();
+  }, [orderId, initialItems, initialTotal]);
 
   const handlePrint = () => {
     setIsPrinting(true);
@@ -21,7 +86,25 @@ function Receipt() {
   };
 
   if (!orderId) {
-    return null;
+    return (
+      <div style={{ padding: "20px", textAlign: "center" }}>
+        <p>Tidak ada data pesanan.</p>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '100vh',
+        backgroundColor: '#f5f5f5'
+      }}>
+        <div>Loading struk...</div>
+      </div>
+    );
   }
 
   const currentDate = new Date();
@@ -75,7 +158,7 @@ function Receipt() {
           </div>
 
           <div className="receipt-items">
-            {items &&
+            {items && items.length > 0 ? (
               items.map((item, index) => (
                 <div key={index} className="receipt-item">
                   <div className="item-col-1">
@@ -90,7 +173,12 @@ function Receipt() {
                     Rp {(item.price * (item.quantity || 1)).toLocaleString("id-ID")}
                   </div>
                 </div>
-              ))}
+              ))
+            ) : (
+              <div className="receipt-item">
+                <p>Tidak ada item</p>
+              </div>
+            )}
           </div>
 
           {/* Divider */}
