@@ -16,8 +16,11 @@ function AdminProducts() {
     author: "",
     category: "",
     price: "",
+    stock: "",
     image: ""
   });
+
+  const [uploading, setUploading] = useState(false);
 
   const token = localStorage.getItem("token");
   const user = JSON.parse(localStorage.getItem("user") || "{}");
@@ -52,6 +55,43 @@ function AdminProducts() {
       ...prev,
       [name]: value
     }));
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setError("");
+    setUploading(true);
+
+    const uploadFormData = new FormData();
+    uploadFormData.append("image", file);
+
+    try {
+      const res = await fetch("http://localhost:5000/products/upload-image", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        },
+        body: uploadFormData
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setFormData(prev => ({
+          ...prev,
+          image: data.imagePath
+        }));
+        setSuccess("Gambar berhasil diupload: " + data.imagePath);
+      } else {
+        setError(data.message || "Gagal upload gambar");
+      }
+    } catch (err) {
+      setError("Error upload: " + err.message);
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -136,7 +176,7 @@ function AdminProducts() {
   const handleCancel = () => {
     setShowForm(false);
     setEditingId(null);
-    setFormData({ title: "", author: "", category: "", price: "", image: "" });
+    setFormData({ title: "", author: "", category: "", price: "", stock: "", image: "" });
   };
 
   if (loading) return <div className="loading">Loading...</div>;
@@ -199,14 +239,37 @@ function AdminProducts() {
           </div>
 
           <div className="form-group">
-            <label>URL Gambar</label>
+            <label>Stock</label>
             <input
-              type="text"
-              name="image"
-              value={formData.image}
+              type="number"
+              name="stock"
+              value={formData.stock}
               onChange={handleInputChange}
-              placeholder="Masukkan URL gambar"
+              placeholder="Masukkan jumlah stock"
+              min="0"
             />
+          </div>
+
+          <div className="form-group">
+            <label>Gambar Produk</label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload}
+              disabled={uploading}
+              placeholder="Pilih gambar"
+            />
+            {uploading && <p style={{ fontSize: '12px', color: '#666', marginTop: '5px' }}>⏳ Uploading...</p>}
+            {formData.image && (
+              <div style={{ marginTop: '10px' }}>
+                <p style={{ fontSize: '12px', color: '#4caf50' }}>✅ Gambar: {formData.image}</p>
+                <img 
+                  src={formData.image} 
+                  alt="Preview" 
+                  style={{ maxWidth: '150px', maxHeight: '150px', borderRadius: '4px', marginTop: '5px' }}
+                />
+              </div>
+            )}
           </div>
 
           <div className="form-actions">
@@ -229,6 +292,7 @@ function AdminProducts() {
               <th>Author</th>
               <th>Kategori</th>
               <th>Harga</th>
+              <th>Stock</th>
               <th>Aksi</th>
             </tr>
           </thead>
@@ -238,8 +302,11 @@ function AdminProducts() {
                 <td>{product.id}</td>
                 <td>{product.title}</td>
                 <td>{product.author}</td>
-                <td>{product.category_name}</td>
+                <td>{product.category_name || product.category}</td>
                 <td>Rp {product.price?.toLocaleString('id-ID')}</td>
+                <td style={{ fontWeight: 'bold', color: product.stock > 0 ? '#4caf50' : '#f44336' }}>
+                  {product.stock || 0}
+                </td>
                 <td className="actions">
                   <button className="btn btn-sm btn-warning" onClick={() => handleEdit(product)}>
                     Edit

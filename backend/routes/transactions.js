@@ -3,17 +3,9 @@ const router = express.Router();
 const pool = require("../db/db");
 const { verifyToken, checkRole } = require("../middleware/auth");
 
-// GET semua transactions (kasir lihat semua, user lihat milik sendiri)
+// GET semua transactions (kasir & admin lihat semua, user lihat milik sendiri)
 router.get("/", verifyToken, async (req, res) => {
   try {
-    // Admin tidak boleh akses transaksi
-    if (req.user.role === "admin") {
-      return res.status(403).json({
-        success: false,
-        message: "Admin tidak memiliki akses ke transaksi management"
-      });
-    }
-
     let query = "SELECT * FROM transactions ORDER BY created_at DESC";
     let params = [];
 
@@ -22,7 +14,7 @@ router.get("/", verifyToken, async (req, res) => {
       query = "SELECT * FROM transactions WHERE user_id = $1 ORDER BY created_at DESC";
       params = [req.user.id];
     }
-    // Kasir bisa lihat semua transaksi
+    // Kasir & Admin bisa lihat semua transaksi
 
     const result = await pool.query(query, params);
     
@@ -58,19 +50,11 @@ router.get("/:id", verifyToken, async (req, res) => {
 
     const transaction = result.rows[0];
 
-    // Validasi akses: user hanya lihat miliknya, kasir bisa lihat semua
+    // Validasi akses: user hanya lihat miliknya, kasir & admin bisa lihat semua
     if (req.user.role === "user" && transaction.user_id !== req.user.id) {
       return res.status(403).json({
         success: false,
         message: "Anda hanya bisa melihat transaksi milik sendiri"
-      });
-    }
-
-    // Admin tidak boleh akses
-    if (req.user.role === "admin") {
-      return res.status(403).json({
-        success: false,
-        message: "Admin tidak memiliki akses ke transaksi management"
       });
     }
 
@@ -83,6 +67,66 @@ router.get("/:id", verifyToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Server error"
+    });
+  }
+});
+
+// POST create transaction by user checkout
+router.post("/user/checkout", verifyToken, async (req, res) => {
+  try {
+    if (req.user.role !== "user") {
+      return res.status(403).json({
+        success: false,
+        message: "Hanya user yang bisa melakukan checkout"
+      });
+    }
+
+    const { items, total } = req.body;
+
+    if (!items || items.length === 0 || !total) {
+      return res.status(400).json({
+        success: false,
+        message: "Items dan total wajib diisi"
+      });
+    }
+
+    // Generate transaction code
+    const timestamp = Date.now();
+    const transaction_code = `TRX-${timestamp}-${req.user.id}`;
+
+    // Kurangi stock untuk setiap produk yang dibeli
+    for (const item of items) {
+      await pool.query(
+        "UPDATE products SET stock = stock - $1 WHERE id = $2",
+        [item.quantity || 1, item.id]
+      );
+    }
+
+    const result = await pool.query(
+      `INSERT INTO transactions 
+       (user_id, transaction_code, items, total_amount, status, payment_method, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+       RETURNING *`,
+      [
+        req.user.id,
+        transaction_code,
+        JSON.stringify(items),
+        total,
+        'completed',
+        'cash'
+      ]
+    );
+
+    res.status(201).json({
+      success: true,
+      message: "Checkout berhasil",
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Server error: " + error.message
     });
   }
 });
@@ -102,6 +146,14 @@ router.post("/", verifyToken, checkRole("kasir"), async (req, res) => {
     // Generate transaction code
     const timestamp = Date.now();
     const transaction_code = `TRX-${timestamp}-${req.user.id}`;
+
+    // Kurangi stock untuk setiap produk yang dibeli
+    for (const item of items) {
+      await pool.query(
+        "UPDATE products SET stock = stock - $1 WHERE id = $2",
+        [item.quantity || 1, item.id]
+      );
+    }
 
     const result = await pool.query(
       `INSERT INTO transactions 

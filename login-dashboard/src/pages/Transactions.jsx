@@ -6,6 +6,7 @@ function Transactions() {
   const navigate = useNavigate();
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
   const [filter, setFilter] = useState("all");
 
@@ -21,25 +22,38 @@ function Transactions() {
     if (!user) return;
 
     const fetchTransactions = async () => {
+      setLoading(true);
+      setError(null);
       try {
         const token = localStorage.getItem("token");
+        if (!token) {
+          throw new Error("Token tidak ditemukan");
+        }
+
         const response = await fetch("http://localhost:5000/transactions", {
           headers: {
             "Authorization": `Bearer ${token}`
           }
         });
 
+        const data = await response.json();
+
         if (response.ok) {
-          const data = await response.json();
           if (data.success && data.data) {
             setTransactions(data.data);
+          } else {
+            console.warn("API response tidak sesuai:", data);
+            setError("Format response tidak valid");
+            setTransactions([]);
           }
         } else {
-          console.error("Failed to fetch transactions");
+          console.error("API Error:", response.status, data.message);
+          setError(data.message || `API Error: ${response.status}`);
           setTransactions([]);
         }
       } catch (error) {
         console.error("Error fetching transactions:", error);
+        setError(error.message || "Gagal fetch transaksi");
         setTransactions([]);
       } finally {
         setLoading(false);
@@ -98,6 +112,13 @@ function Transactions() {
             {user?.role === "kasir" ? "Semua transaksi penjualan" : "Transaksi milik Anda"}
           </p>
         </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="alert alert-error" style={{ marginBottom: '20px', padding: '12px', backgroundColor: '#ffebee', border: '1px solid #f44336', borderRadius: '5px', color: '#c62828' }}>
+            ❌ Error: {error}
+          </div>
+        )}
 
         {/* Filter Buttons */}
         <div className="filter-buttons">

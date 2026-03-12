@@ -189,25 +189,49 @@ app.get("/api/books", (req, res) => {
   ]);
 });
 
-// Handle uncaught exceptions
-process.on('uncaughtException', (err) => {
-  console.error('❌ Uncaught Exception:', err);
-  process.exit(1);
-});
+// Start server function
+async function startServer() {
+  try {
+    console.log("Initializing database...");
+    await initializeDatabase();
+    
+    console.log("Seeding database...");
+    await seedDatabase();
+    
+    const server = app.listen(5000, () => {
+      console.log("✅ Backend jalan di http://localhost:5000");
+      console.log("✅ Database sudah siap!");
+      console.log("✅ Server listening on port 5000");
+    });
 
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('❌ Unhandled Rejection:', reason);
-  process.exit(1);
-});
+    // Handle graceful shutdown
+    process.on('SIGINT', () => {
+      console.log('\n\nShutting down gracefully...');
+      server.close(() => {
+        console.log('Server closed');
+        process.exit(0);
+      });
+    });
 
-// Inisialisasi database dan jalankan server
-initializeDatabase().then(async () => {
-  await seedDatabase();
-  app.listen(5000, () => {
-    console.log("Backend jalan di http://localhost:5000");
-    console.log("Database sudah siap!");
-  });
-}).catch(err => {
-  console.error("❌ Gagal inisialisasi database:", err);
-  process.exit(1);
-});
+    // Handle uncaught exceptions
+    process.on('uncaughtException', (err) => {
+      console.error('❌ Uncaught Exception:', err);
+      process.exit(1);
+    });
+
+    process.on('unhandledRejection', (reason, promise) => {
+      console.error('❌ Unhandled Rejection:', reason);
+      process.exit(1);
+    });
+
+  } catch (err) {
+    console.error("❌ Gagal inisialisasi database:", err.message);
+    process.exit(1);
+  }
+}
+
+// Start the server
+startServer();
+
+// Prevent process from exiting
+setInterval(() => {}, 1000);

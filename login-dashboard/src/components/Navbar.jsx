@@ -1,5 +1,6 @@
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useState, useEffect } from "react";
+import { clearAuthStorage, getUserFromStorage } from "../utils/authCleanup";
 import "./Navbar.css";
 
 function Navbar() {
@@ -13,11 +14,30 @@ function Navbar() {
     if (userJson) {
       setUser(JSON.parse(userJson));
     }
+    
+    // Listen for login event dari Login.jsx
+    const handleUserLogin = () => {
+      const updatedUserJson = localStorage.getItem("user");
+      if (updatedUserJson) {
+        setUser(JSON.parse(updatedUserJson));
+      }
+    };
+    
+    window.addEventListener('userLoginSuccess', handleUserLogin);
+    
+    return () => {
+      window.removeEventListener('userLoginSuccess', handleUserLogin);
+    };
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    // Clear semua auth data
+    clearAuthStorage();
+    
+    // Reset state
+    setUser(null);
+    
+    // Redirect ke login
     navigate("/");
   };
 

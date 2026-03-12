@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
+import { clearAuthStorage } from "../utils/authCleanup";
 import "./Dashboard.css";
 
 function Dashboard() {
@@ -200,8 +201,10 @@ function Dashboard() {
     } catch (err) {
       console.error("Logout error:", err);
     }
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    
+    // Clear semua auth data
+    clearAuthStorage();
+    
     navigate("/");
   };
 
@@ -212,35 +215,45 @@ function Dashboard() {
     }
 
     try {
-      const response = await fetch("http://localhost:5000/api/orders", {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        alert("Token tidak ditemukan, silahkan login kembali");
+        navigate("/");
+        return;
+      }
+
+      const response = await fetch("http://localhost:5000/transactions/user/checkout", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify({ items: cart, total: totalPrice })
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
+        const error = await response.json();
+        throw new Error(error.message || `HTTP Error: ${response.status}`);
       }
 
       const result = await response.json();
-      const order = result.data || result;
+      
+      // Clear cart after successful checkout
+      setCart([]);
+      setShowCart(false);
+      
+      // Navigate to receipt with transaction data
       navigate("/receipt", {
         state: {
-          orderId: order.id,
+          orderId: result.data.id,
+          transactionCode: result.data.transaction_code,
           items: cart,
           total: totalPrice
         }
       });
     } catch (error) {
-      console.error("Error:", error);
-      const orderId = Math.floor(Date.now() / 1000);
-      navigate("/receipt", {
-        state: {
-          orderId: orderId,
-          items: cart,
-          total: totalPrice
-        }
-      });
+      console.error("Checkout error:", error);
+      alert("Checkout gagal: " + error.message);
     }
   };
 
@@ -401,6 +414,11 @@ function Dashboard() {
                   <div className="book-info">
                     <h3>{book.title}</h3>
                     <p className="author">✍️ {book.author}</p>
+                    <div style={{ marginBottom: '10px', fontSize: '13px', color: '#666' }}>
+                      📦 Stock: <strong style={{ color: book.stock > 0 ? '#4caf50' : '#f44336' }}>
+                        {book.stock || 0} unit
+                      </strong>
+                    </div>
                     <div className="book-footer">
                       <span className="price">
                         Rp {Number(book.price).toLocaleString("id-ID")}
@@ -408,8 +426,13 @@ function Dashboard() {
                       <button 
                         className="add-btn"
                         onClick={() => addToCart(book)}
+                        disabled={!book.stock || book.stock <= 0}
+                        style={{ 
+                          opacity: !book.stock || book.stock <= 0 ? 0.5 : 1,
+                          cursor: !book.stock || book.stock <= 0 ? 'not-allowed' : 'pointer'
+                        }}
                       >
-                        🛒 Beli
+                        {book.stock > 0 ? '🛒 Beli' : '❌ Habis'}
                       </button>
                     </div>
                   </div>

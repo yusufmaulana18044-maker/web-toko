@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { clearAuthStorage, setUserToStorage, setTokenToStorage } from "../utils/authCleanup";
 import "./Login.css";
 
 function Login() {
@@ -34,9 +35,16 @@ function Login() {
       const data = await response.json();
 
       if (data.success) {
-        // Simpan token ke localStorage
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("user", JSON.stringify(data.user));
+        // Clear semua data auth lama
+        clearAuthStorage();
+        
+        // Set token dan user baru
+        setTokenToStorage(data.token);
+        setUserToStorage(data.user);
+        
+        // Dispatch event agar Navbar ter-update
+        window.dispatchEvent(new Event('userLoginSuccess'));
+        
         navigate("/dashboard");
       } else {
         setError(data.message || "Login gagal!");

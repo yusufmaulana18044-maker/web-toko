@@ -1,11 +1,15 @@
 import { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import "./Receipt.css";
 
 function Receipt() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { orderId, items: initialItems, total: initialTotal } = location.state || {};
+  const { id: urlId } = useParams(); // Get ID dari URL params
+  const { orderId: stateOrderId, items: initialItems, total: initialTotal } = location.state || {};
+  
+  // Gunakan URL ID jika ada, jika tidak gunakan dari location.state
+  const orderId = urlId || stateOrderId;
   
   const [isPrinting, setIsPrinting] = useState(false);
   const [items, setItems] = useState(initialItems || []);
@@ -108,13 +112,27 @@ function Receipt() {
   }
 
   const currentDate = new Date();
-  const receiptDate = currentDate.toLocaleDateString("id-ID", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric"
-  });
-  const receiptTime = currentDate.toLocaleTimeString("id-ID");
+  
+  // Gunakan tanggal dari database jika ada, jika tidak gunakan tanggal sekarang
+  let receiptDate, receiptTime;
+  if (transactionData && transactionData.created_at) {
+    const dbDate = new Date(transactionData.created_at);
+    receiptDate = dbDate.toLocaleDateString("id-ID", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric"
+    });
+    receiptTime = dbDate.toLocaleTimeString("id-ID");
+  } else {
+    receiptDate = currentDate.toLocaleDateString("id-ID", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric"
+    });
+    receiptTime = currentDate.toLocaleTimeString("id-ID");
+  }
 
   return (
     <div className="receipt-wrapper">
@@ -136,6 +154,12 @@ function Receipt() {
               <span className="label">No. Pesanan</span>
               <span className="value">#{orderId}</span>
             </div>
+            {transactionData && transactionData.transaction_code && (
+              <div className="info-row">
+                <span className="label">Kode Transaksi</span>
+                <span className="value">{transactionData.transaction_code}</span>
+              </div>
+            )}
             <div className="info-row">
               <span className="label">Tanggal</span>
               <span className="value">{receiptDate}</span>
@@ -144,6 +168,17 @@ function Receipt() {
               <span className="label">Waktu</span>
               <span className="value">{receiptTime}</span>
             </div>
+            {transactionData && transactionData.status && (
+              <div className="info-row">
+                <span className="label">Status</span>
+                <span className="value" style={{ 
+                  color: transactionData.status === 'completed' ? '#4caf50' : '#ff9800',
+                  fontWeight: 'bold'
+                }}>
+                  {transactionData.status === 'completed' ? '✅ Selesai' : transactionData.status.toUpperCase()}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Divider */}

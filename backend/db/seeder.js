@@ -81,16 +81,16 @@ const seedDatabase = async () => {
 
     // Seed Products
     const defaultProducts = [
-      { title: "Laskar Pelangi", author: "Andrea Hirata", category: "Sastra Anak", price: 85000, image: "/images/book-1.jpg" },
-      { title: "Si Kancil: Cerita Rakyat Indonesia", author: "Tradisional", category: "Fabel Anak", price: 65000, image: "/images/book-2.jpg" },
-      { title: "Negeri di Ujung Tanduk", author: "Panuti Sudjiman", category: "Fantasi Anak", price: 70000, image: "/images/book-3.jpg" },
-      { title: "Hansel dan Gretel Versi Indonesia", author: "Djemari", category: "Dongeng Klasik", price: 60000, image: "/images/book-4.jpg" },
-      { title: "Malin Kundang", author: "Tradisional", category: "Legenda Indonesia", price: 55000, image: "/images/book-5.jpg" },
-      { title: "Roro Jonggrang", author: "Tradisional", category: "Legenda Indonesia", price: 60000, image: "/images/book-6.jpg" },
-      { title: "Dongeng Nusantara", author: "Antologi", category: "Antologi", price: 68000, image: "/images/book-7.jpg" },
-      { title: "Cerita Anak Nusantara", author: "Kompilasi", category: "Antologi", price: 72000, image: "/images/book-8.jpg" },
-      { title: "Dru dan Kisah Lima Kerajaan", author: "Clara Ng", category: "Kisah Inspiratif", price: 58000, image: "/images/book-9.jpg" },
-      { title: "Kumpulan Cerita Ragam Indonesia", author: "Tim Dongeng", category: "Aktivitas", price: 45000, image: "/images/book-10.jpg" }
+      { title: "Laskar Pelangi", author: "Andrea Hirata", category: "Sastra Anak", price: 85000, stock: 15, image: "/images/book-1.jpg" },
+      { title: "Si Kancil: Cerita Rakyat Indonesia", author: "Tradisional", category: "Fabel Anak", price: 65000, stock: 22, image: "/images/book-2.jpg" },
+      { title: "Negeri di Ujung Tanduk", author: "Panuti Sudjiman", category: "Fantasi Anak", price: 70000, stock: 18, image: "/images/book-3.jpg" },
+      { title: "Hansel dan Gretel Versi Indonesia", author: "Djemari", category: "Dongeng Klasik", price: 60000, stock: 25, image: "/images/book-4.jpg" },
+      { title: "Malin Kundang", author: "Tradisional", category: "Legenda Indonesia", price: 55000, stock: 20, image: "/images/book-5.jpg" },
+      { title: "Roro Jonggrang", author: "Tradisional", category: "Legenda Indonesia", price: 60000, stock: 12, image: "/images/book-6.jpg" },
+      { title: "Dongeng Nusantara", author: "Antologi", category: "Antologi", price: 68000, stock: 30, image: "/images/book-7.jpg" },
+      { title: "Cerita Anak Nusantara", author: "Kompilasi", category: "Antologi", price: 72000, stock: 8, image: "/images/book-8.jpg" },
+      { title: "Dru dan Kisah Lima Kerajaan", author: "Clara Ng", category: "Kisah Inspiratif", price: 58000, stock: 5, image: "/images/book-9.jpg" },
+      { title: "Kumpulan Cerita Ragam Indonesia", author: "Tim Dongeng", category: "Aktivitas", price: 45000, stock: 35, image: "/images/book-10.jpg" }
     ];
 
     for (const product of defaultProducts) {
@@ -101,12 +101,22 @@ const seedDatabase = async () => {
 
       if (checkResult.rows.length === 0) {
         await pool.query(
-          "INSERT INTO products (title, author, category, price, image, created_at) VALUES ($1, $2, $3, $4, $5, NOW())",
-          [product.title, product.author, product.category, product.price, product.image]
+          "INSERT INTO products (title, author, category, price, stock, image, created_at) VALUES ($1, $2, $3, $4, $5, $6, NOW())",
+          [product.title, product.author, product.category, product.price, product.stock, product.image]
         );
-        console.log(`✅ Produk '${product.title}' berhasil dibuat`);
+        console.log(`✅ Produk '${product.title}' berhasil dibuat (Stock: ${product.stock})`);
       } else {
         console.log(`ℹ️  Produk '${product.title}' sudah ada`);
+        
+        // Update stock untuk existing products
+        try {
+          await pool.query(
+            "UPDATE products SET stock = $1 WHERE title = $2 AND stock = 0",
+            [product.stock, product.title]
+          );
+        } catch (err) {
+          // Ignore jika update gagal
+        }
       }
     }
 

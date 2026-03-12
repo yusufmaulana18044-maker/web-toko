@@ -28,6 +28,13 @@ function App() {
           </ProtectedRoute>
         } />
 
+        {/* Transaction Detail Route */}
+        <Route path="/transaction/:id" element={
+          <ProtectedRoute>
+            <Receipt />
+          </ProtectedRoute>
+        } />
+
         {/* Kasir Transactions Route */}
         <Route path="/kasir/transactions" element={
           <ProtectedRoute requiredRoles={["kasir"]}>
@@ -42,7 +49,12 @@ function App() {
           </ProtectedRoute>
         } />
 
-        {/* Admin Routes */}
+        {/* Admin Transactions Route */}
+        <Route path="/admin/transactions" element={
+          <ProtectedRoute requiredRoles={["admin"]}>
+            <Transactions />
+          </ProtectedRoute>
+        } />
         <Route path="/admin/products" element={
           <ProtectedRoute requiredRoles={["admin"]}>
             <AdminProducts />

@@ -13,6 +13,9 @@ const initializeDatabase = async () => {
         phone VARCHAR(20),
         password VARCHAR(255) NOT NULL,
         role VARCHAR(50) DEFAULT 'user' CHECK (role IN ('user', 'admin', 'kasir')),
+        is_approved BOOLEAN DEFAULT FALSE,
+        approved_by INTEGER,
+        approved_at TIMESTAMP,
         created_at TIMESTAMP DEFAULT NOW()
       );
     `;
@@ -41,13 +44,24 @@ const initializeDatabase = async () => {
         author VARCHAR(255) NOT NULL,
         category VARCHAR(255) NOT NULL,
         price INTEGER NOT NULL,
+        stock INTEGER DEFAULT 0,
         image VARCHAR(500),
         created_at TIMESTAMP DEFAULT NOW()
       );
     `;
-
+    
     await pool.query(createProductsTableQuery);
     console.log("✅ Tabel products berhasil dibuat");
+    
+    // Add stock column jika belum ada (untuk existing tables)
+    try {
+      await pool.query(`
+        ALTER TABLE products ADD COLUMN IF NOT EXISTS stock INTEGER DEFAULT 0;
+      `);
+      console.log("✅ Kolom stock berhasil ditambahkan");
+    } catch (err) {
+      console.log("ℹ️  Kolom stock sudah ada atau tidak perlu ditambahkan");
+    }
 
     // Buat tabel transactions
     const createTransactionsTableQuery = `

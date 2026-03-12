@@ -49,13 +49,13 @@ router.post("/register", async (req, res) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Simpan user ke database
+    // Simpan user ke database (default is_approved = false)
     console.log("📝 Attempting to insert user:", { username, email, full_name, phone });
-    console.log("Query parameters:", [username, email, full_name, phone || "", hashedPassword, "user"]);
+    console.log("Query parameters:", [username, email, full_name, phone || "", hashedPassword, "user", false]);
     
     const result = await pool.query(
-      "INSERT INTO users (username, email, full_name, phone, password, role, created_at) VALUES ($1, $2, $3, $4, $5, $6, NOW()) RETURNING id, username, email, full_name, role",
-      [username, email, full_name, phone || "", hashedPassword, "user"]
+      "INSERT INTO users (username, email, full_name, phone, password, role, is_approved, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW()) RETURNING id, username, email, full_name, role, is_approved",
+      [username, email, full_name, phone || "", hashedPassword, "user", false]
     );
 
     console.log("✅ User inserted successfully:", result.rows[0]);
@@ -63,13 +63,14 @@ router.post("/register", async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: "Registrasi berhasil! Silahkan login.",
+      message: "Registrasi berhasil! Menunggu approval dari kasir untuk bisa melakukan transaksi.",
       user: {
         id: newUser.id,
         username: newUser.username,
         email: newUser.email,
         full_name: newUser.full_name,
-        role: newUser.role
+        role: newUser.role,
+        is_approved: newUser.is_approved
       }
     });
   } catch (err) {
@@ -133,7 +134,8 @@ router.post("/login", async (req, res) => {
         username: user.username,
         email: user.email,
         full_name: user.full_name,
-        role: user.role
+        role: user.role,
+        is_approved: user.is_approved
       }
     });
   } catch (err) {
@@ -246,6 +248,134 @@ router.get("/me", async (req, res) => {
     res.status(401).json({
       success: false,
       message: "Unauthorized"
+    });
+  }
+});
+
+// GET unapproved users (untuk kasir lihat daftar user yang perlu di-approve)
+router.get("/pending/users", verifyToken, checkRole("kasir"), async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT id, username, email, full_name, phone, is_approved, created_at FROM users WHERE role = 'user' AND is_approved = FALSE ORDER BY created_at DESC"
+    );
+
+    res.json({
+      success: true,
+      data: result.rows
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Server error"
+    });
+  }
+});
+
+// GET all users (untuk kasir lihat semua user)
+router.get("/all/users", verifyToken, checkRole("kasir"), async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT id, username, email, full_name, phone, role, is_approved, approved_by, approved_at, created_at FROM users ORDER BY created_at DESC"
+    );
+
+    res.json({
+      success: true,
+      data: result.rows
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Server error"
+    });
+  }
+});
+
+// APPROVE user (kasir approve user)
+router.post("/approve/:userId", verifyToken, checkRole("kasir"), async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Cek user exists
+    const userCheck = await pool.query(
+      "SELECT * FROM users WHERE id = $1",
+      [userId]
+    );
+
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "User tidak ditemukan"
+      });
+    }
+
+    const user = userCheck.rows[0];
+
+    if (user.is_approved) {
+      return res.status(400).json({
+        success: false,
+        message: "User sudah di-approve sebelumnya"
+      });
+    }
+
+    // Update user approval
+    const result = await pool.query(
+      "UPDATE users SET is_approved = TRUE, approved_by = $1, approved_at = NOW() WHERE id = $2 RETURNING id, username, email, full_name, is_approved, approved_at",
+      [req.user.id, userId]
+    );
+
+    res.json({
+      success: true,
+      message: `User ${user.username} berhasil di-approve`,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Server error: " + error.message
+    });
+  }
+});
+
+// REJECT user (kasir reject user - reset is_approved to false dengan alasan)
+router.post("/reject/:userId", verifyToken, checkRole("kasir"), async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { reason } = req.body;
+
+    // Cek user exists
+    const userCheck = await pool.query(
+      "SELECT * FROM users WHERE id = $1",
+      [userId]
+    );
+
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "User tidak ditemukan"
+      });
+    }
+
+    const user = userCheck.rows[0];
+
+    // Update user rejection
+    const result = await pool.query(
+      "UPDATE users SET is_approved = FALSE, approved_by = NULL, approved_at = NULL WHERE id = $1 RETURNING id, username, email, full_name, is_approved",
+      [userId]
+    );
+
+    res.json({
+      success: true,
+      message: `User ${user.username} ditolak. ${reason ? `Alasan: ${reason}` : ''}`,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Server error: " + error.message
     });
   }
 });
@@ -407,6 +537,51 @@ router.delete("/users/:id", verifyToken, checkRole("admin"), async (req, res) =>
     });
   } catch (err) {
     console.error("❌ ERROR DELETE USER:", err.message);
+    res.status(500).json({
+      success: false,
+      message: "Server error: " + err.message
+    });
+  }
+});
+
+// UPDATE user role (HANYA ADMIN)
+router.patch("/update-role", verifyToken, checkRole("admin"), async (req, res) => {
+  try {
+    const { username, new_role } = req.body;
+
+    if (!username || !new_role) {
+      return res.status(400).json({
+        success: false,
+        message: "Username dan new_role wajib diisi"
+      });
+    }
+
+    if (!["user", "admin", "kasir"].includes(new_role)) {
+      return res.status(400).json({
+        success: false,
+        message: "Role tidak valid"
+      });
+    }
+
+    const result = await pool.query(
+      "UPDATE users SET role = $1 WHERE username = $2 RETURNING id, username, role",
+      [new_role, username]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "User tidak ditemukan"
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Role user ${username} berhasil diubah menjadi ${new_role}`,
+      data: result.rows[0]
+    });
+  } catch (err) {
+    console.error("❌ ERROR UPDATE ROLE:", err.message);
     res.status(500).json({
       success: false,
       message: "Server error: " + err.message
