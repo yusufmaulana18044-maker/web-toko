@@ -14,6 +14,8 @@ function Dashboard() {
   const [cart, setCart] = useState([]);
   const [showCart, setShowCart] = useState(false);
   const [user, setUser] = useState(null);
+  const [selectedBook, setSelectedBook] = useState(null);
+  const [showProductModal, setShowProductModal] = useState(false);
 
   // 🔐 Check token saat load
   useEffect(() => {
@@ -30,121 +32,56 @@ function Dashboard() {
     }
   }, [navigate]);
 
-  // 🔥 ambil data dari backend
+  // 🔥 ambil data dari backend dengan polling otomatis
   useEffect(() => {
-    // Fetch categories
-    fetch("http://localhost:5000/categories")
-      .then((res) => res.json())
-      .then((data) => {
-        setCategories(data.data || []);
-      })
-      .catch((err) => {
-        console.error("Gagal ambil kategori:", err);
-        setCategories([
-          { id: 1, name: "Cerita Rakyat", slug: "cerita-rakyat" },
-          { id: 2, name: "Fabel", slug: "fabel" },
-          { id: 3, name: "Legenda", slug: "legenda" },
-          { id: 4, name: "Petualangan", slug: "petualangan" },
-          { id: 5, name: "Dongeng", slug: "dongeng" },
-          { id: 6, name: "Fantasi", slug: "fantasi" },
-          { id: 7, name: "Sejarah", slug: "sejarah" },
-          { id: 8, name: "Mitos", slug: "mitos" }
-        ]);
-      });
+    // Fungsi fetch kategori
+    const fetchCategories = () => {
+      fetch("http://localhost:5000/categories")
+        .then((res) => res.json())
+        .then((data) => {
+          setCategories(data.data || []);
+        })
+        .catch((err) => {
+          console.error("Gagal ambil kategori:", err);
+          setCategories([
+            { id: 1, name: "Cerita Rakyat", slug: "cerita-rakyat" },
+            { id: 2, name: "Fabel", slug: "fabel" },
+            { id: 3, name: "Legenda", slug: "legenda" },
+            { id: 4, name: "Petualangan", slug: "petualangan" },
+            { id: 5, name: "Dongeng", slug: "dongeng" },
+            { id: 6, name: "Fantasi", slug: "fantasi" },
+            { id: 7, name: "Sejarah", slug: "sejarah" },
+            { id: 8, name: "Mitos", slug: "mitos" }
+          ]);
+        });
+    };
 
-    // Fetch products
-    fetch("http://localhost:5000/products")
-      .then((res) => res.json())
-      .then((data) => {
-        setBooks(data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Gagal ambil produk:", err);
-        setBooks([
-          {
-            id: 1,
-            title: "Cerita Rakyat Nusantara",
-            author: "Murti Bunanta",
-            category_name: "Cerita Rakyat",
-            price: 75000,
-            image: "/images/book-1.jpg"
-          },
-          {
-            id: 2,
-            title: "Si Kancil Penggalau",
-            author: "Suwardi",
-            category_name: "Fabel",
-            price: 65000,
-            image: "/images/book-2.jpg"
-          },
-          {
-            id: 3,
-            title: "Legenda Bukit Merah",
-            author: "Suciwati",
-            category_name: "Legenda",
-            price: 80000,
-            image: "/images/book-3.jpg"
-          },
-          {
-            id: 4,
-            title: "Petualangan Anak Negeri",
-            author: "Seno Gumira Ajidarma",
-            category_name: "Petualangan",
-            price: 90000,
-            image: "/images/book-4.jpg"
-          },
-          {
-            id: 5,
-            title: "Dongeng Sebelum Tidur",
-            author: "Harun Erwin",
-            category_name: "Dongeng",
-            price: 70000,
-            image: "/images/book-5.jpg"
-          },
-          {
-            id: 6,
-            title: "Kisah Panjang Emas",
-            author: "Sri Dewi",
-            category_name: "Fantasi",
-            price: 95000,
-            image: "/images/book-6.jpg"
-          },
-          {
-            id: 7,
-            title: "Pangeran Diponegoro",
-            author: "Langit Kresna Hariyadhi",
-            category_name: "Sejarah",
-            price: 85000,
-            image: "/images/book-7.jpg"
-          },
-          {
-            id: 8,
-            title: "Putri Duyung Laut Jawa",
-            author: "Wiratno Hadiwinoto",
-            category_name: "Mitos",
-            price: 78000,
-            image: "/images/book-8.jpg"
-          },
-          {
-            id: 9,
-            title: "Timun Mas dan Raksasa",
-            author: "Bambang Sugiharto",
-            category_name: "Cerita Rakyat",
-            price: 72000,
-            image: "/images/book-9.jpg"
-          },
-          {
-            id: 10,
-            title: "Sang Malin Kundang",
-            author: "Awang Rasyid",
-            category_name: "Legenda",
-            price: 82000,
-            image: "/images/book-10.jpg"
-          }
-        ]);
-        setLoading(false);
-      });
+    // Fungsi fetch produk
+    const fetchProducts = () => {
+      fetch("http://localhost:5000/products")
+        .then((res) => res.json())
+        .then((data) => {
+          setBooks(data);
+          setLoading(false);
+        })
+        .catch((err) => {
+          console.error("Gagal ambil produk:", err);
+          setBooks([]);
+          setLoading(false);
+        });
+    };
+
+    // Fetch pertama kali
+    fetchCategories();
+    fetchProducts();
+
+    // Polling setiap 5 detik
+    const interval = setInterval(() => {
+      fetchProducts();
+    }, 5000);
+
+    // Bersihkan interval saat unmount
+    return () => clearInterval(interval);
   }, []);
 
   const filteredBooks = books.filter((book) => {
@@ -241,7 +178,17 @@ function Dashboard() {
       // Clear cart after successful checkout
       setCart([]);
       setShowCart(false);
-      
+
+      // Re-fetch products to update stock
+      fetch("http://localhost:5000/products")
+        .then((res) => res.json())
+        .then((data) => {
+          setBooks(data);
+        })
+        .catch((err) => {
+          console.error("Gagal update produk setelah checkout:", err);
+        });
+
       // Navigate to receipt with transaction data
       navigate("/receipt", {
         state: {
@@ -258,7 +205,7 @@ function Dashboard() {
   };
 
   return (
-    <div className="dashboard-container">
+    <div className="dashboard-container" style={{ position: 'relative' }}>
       <div className="dashboard-header">
         <div className="header-content">
           <h1>📚 Toko Buku Digital</h1>
@@ -399,8 +346,8 @@ function Dashboard() {
           <div className="books-grid">
             {!loading && filteredBooks.length > 0 ? (
               filteredBooks.map((book) => (
-                <div key={book.id} className="book-card">
-                  <div className="book-image">
+                <div key={book.id} className="book-card" style={{ cursor: 'pointer', position: 'relative' }}>
+                  <div className="book-image" onClick={() => { setSelectedBook(book); setShowProductModal(true); }}>
                     <img
                       src={book.image || "/images/default.jpg"}
                       alt={book.title}
@@ -410,7 +357,6 @@ function Dashboard() {
                       {book.category}
                     </span>
                   </div>
-
                   <div className="book-info">
                     <h3>{book.title}</h3>
                     <p className="author">✍️ {book.author}</p>
@@ -425,7 +371,7 @@ function Dashboard() {
                       </span>
                       <button 
                         className="add-btn"
-                        onClick={() => addToCart(book)}
+                        onClick={(e) => { e.stopPropagation(); addToCart(book); }}
                         disabled={!book.stock || book.stock <= 0}
                         style={{ 
                           opacity: !book.stock || book.stock <= 0 ? 0.5 : 1,
@@ -451,7 +397,134 @@ function Dashboard() {
                 </div>
               )
             )}
+                {/* Modal Overlay Produk Full Layar - hanya satu */}
+                {showProductModal && selectedBook && (
+                  <div style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    background: 'rgba(255,255,255,0.2)',
+                    backdropFilter: 'blur(8px)',
+                    WebkitBackdropFilter: 'blur(8px)',
+                    zIndex: 99999,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'hidden',
+                    margin: 0,
+                    padding: 0,
+                  }}>
+                    <div style={{
+                      background: '#fff',
+                      borderRadius: '16px',
+                      boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+                      padding: '32px',
+                      maxWidth: '500px',
+                      width: '90%',
+                      position: 'relative',
+                      textAlign: 'center',
+                      maxHeight: '90vh',
+                      overflowY: 'auto',
+                    }}>
+                      <button style={{
+                        position: 'absolute',
+                        top: '16px',
+                        right: '16px',
+                        fontSize: '24px',
+                        background: '#f44336',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '50%',
+                        width: '32px',
+                        height: '32px',
+                        cursor: 'pointer',
+                      }} onClick={() => { setShowProductModal(false); setSelectedBook(null); }}>✕</button>
+                      <img src={selectedBook.image || "/images/default.jpg"} alt={selectedBook.title} style={{ width: '120px', height: '180px', objectFit: 'cover', borderRadius: '8px', marginBottom: '16px' }} />
+                      <h2 style={{ marginBottom: '8px' }}>{selectedBook.title}</h2>
+                      <p><strong>Penulis:</strong> {selectedBook.author}</p>
+                      <p><strong>Kategori:</strong> {selectedBook.category}</p>
+                      <p><strong>Harga:</strong> Rp {Number(selectedBook.price).toLocaleString("id-ID")}</p>
+                      <p><strong>Stock:</strong> {selectedBook.stock || 0} unit</p>
+                      {selectedBook.description && <p style={{ marginTop: '10px' }}><strong>Deskripsi:</strong> {selectedBook.description}</p>}
+                      <button 
+                        className="add-btn"
+                        style={{ marginTop: '18px', fontSize: '18px', padding: '10px 24px' }}
+                        onClick={() => { addToCart(selectedBook); }}
+                        disabled={!selectedBook.stock || selectedBook.stock <= 0}
+                      >
+                        {selectedBook.stock > 0 ? '🛒 Beli' : '❌ Habis'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+            {/* Modal Overlay Produk Full Layar */}
+            {showProductModal && selectedBook && (
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                background: 'rgba(255,255,255,0.2)',
+                backdropFilter: 'blur(8px)',
+                WebkitBackdropFilter: 'blur(8px)',
+                zIndex: 99999,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                overflow: 'hidden',
+                margin: 0,
+                padding: 0,
+              }}>
+                <div style={{
+                  background: '#fff',
+                  borderRadius: '16px',
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+                  padding: '32px',
+                  maxWidth: '500px',
+                  width: '90%',
+                  position: 'relative',
+                  textAlign: 'center',
+                  maxHeight: '90vh',
+                  overflowY: 'auto',
+                }}>
+                  <button style={{
+                    position: 'absolute',
+                    top: '16px',
+                    right: '16px',
+                    fontSize: '24px',
+                    background: '#f44336',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: '32px',
+                    height: '32px',
+                    cursor: 'pointer',
+                  }} onClick={() => { setShowProductModal(false); setSelectedBook(null); }}>✕</button>
+                  <img src={selectedBook.image || "/images/default.jpg"} alt={selectedBook.title} style={{ width: '120px', height: '180px', objectFit: 'cover', borderRadius: '8px', marginBottom: '16px' }} />
+                  <h2 style={{ marginBottom: '8px' }}>{selectedBook.title}</h2>
+                  <p><strong>Penulis:</strong> {selectedBook.author}</p>
+                  <p><strong>Kategori:</strong> {selectedBook.category}</p>
+                  <p><strong>Harga:</strong> Rp {Number(selectedBook.price).toLocaleString("id-ID")}</p>
+                  <p><strong>Stock:</strong> {selectedBook.stock || 0} unit</p>
+                  {selectedBook.description && <p style={{ marginTop: '10px' }}><strong>Deskripsi:</strong> {selectedBook.description}</p>}
+                  <button 
+                    className="add-btn"
+                    style={{ marginTop: '18px', fontSize: '18px', padding: '10px 24px' }}
+                    onClick={() => { addToCart(selectedBook); }}
+                    disabled={!selectedBook.stock || selectedBook.stock <= 0}
+                  >
+                    {selectedBook.stock > 0 ? '🛒 Beli' : '❌ Habis'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
+
+          {/* Modal Overlay Produk Full Layar */}
+                
         </div>
       )}
     </div>

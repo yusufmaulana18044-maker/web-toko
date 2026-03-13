@@ -10,7 +10,7 @@ const SECRET_KEY = "rahasia_jwt";
 // Token blacklist untuk logout
 let tokenBlacklist = [];
 
-// REGISTER: buat user baru
+// TER: buat user baru
 router.post("/register", async (req, res) => {
   const { username, email, full_name, phone, password } = req.body;
 

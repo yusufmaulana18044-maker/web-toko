@@ -1,14 +1,23 @@
+
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
 const initializeDatabase = require("./db/schema");
 const seedDatabase = require("./db/seeder");
 const pool = require("./db/db");
-
 const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Endpoint untuk mengambil semua user
+app.get("/users", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT id, username, email, full_name, role, is_approved FROM users ORDER BY id ASC");
+    res.json({ success: true, data: result.rows });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 // Serve static files from public folder
 const publicPath = path.join(__dirname, '../login-dashboard/public');
 console.log('Serving static files from:', publicPath);
@@ -209,7 +218,7 @@ async function startServer() {
       console.log('\n\nShutting down gracefully...');
       server.close(() => {
         console.log('Server closed');
-        process.exit(0);
+        // Jangan exit, biarkan process tetap hidup
       });
     });
 
