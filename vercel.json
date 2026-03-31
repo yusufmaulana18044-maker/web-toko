@@ -1,10 +1,1 @@
-{
-  "buildCommand": "cd login-dashboard && npm install && npm run build",
-  "outputDirectory": "login-dashboard/build",
-  "redirects": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
-  ]
-}
+{}
