@@ -1,4 +1,31 @@
 {
+  "name": "web-toko",
+  "version": "2.0.0",
+  "description": "E-commerce application with React frontend and Node.js/Supabase backend",
+  "main": "backend/server-supabase.js",
+  "scripts": {
+    "install:all": "npm install && cd backend && npm install && cd ../login-dashboard && npm install",
+    "start": "npm run start:backend",
+    "start:backend": "cd backend && npm start",
+    "start:frontend": "cd login-dashboard && npm start",
+    "dev": "npm run dev:backend",
+    "dev:backend": "cd backend && npm run dev",
+    "build": "npm run build:frontend",
+    "build:frontend": "cd login-dashboard && npm run build",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "ecommerce",
+    "react",
+    "express",
+    "supabase"
+  ],
+  "author": "Web Toko Team",
+  "license": "ISC",
+  "engines": {
+    "node": ">=14.0.0",
+    "npm": ">=6.0.0"
+  },
   "dependencies": {
     "node-fetch": "^2.7.0"
   }

@@ -1,0 +1,7 @@
+{
+  "buildCommand": "cd login-dashboard && npm run build",
+  "outputDirectory": "login-dashboard/build",
+  "env": {
+    "REACT_APP_API_URL": "@react_app_api_url"
+  }
+}
