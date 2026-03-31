@@ -1,0 +1,221 @@
+/**
+ * Products Routes dengan Supabase
+ * Dokumentasi Supabase: https://supabase.com/docs/reference/javascript/select
+ */
+
+const express = require("express");
+const router = express.Router();
+const { supabase } = require("../db/supabase");
+const { verifyToken, checkRole } = require("../middleware/auth");
+
+// ============ PUBLIC ENDPOINTS ============
+
+/**
+ * GET /products
+ * Mendapatkan semua produk (PUBLIC)
+ */
+router.get("/", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("products")
+      .select("id, title, author, category, price, stock, image")
+      .order("id", { ascending: true });
+
+    if (error) {
+      console.error("❌ Error fetching products:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Gagal mengambil data produk"
+      });
+    }
+
+    res.json({
+      success: true,
+      data: data || []
+    });
+  } catch (err) {
+    console.error("❌ Server error:", err.message);
+    res.status(500).json({
+      success: false,
+      message: "Server error: " + err.message
+    });
+  }
+});
+
+/**
+ * GET /products/:id
+ * Mendapatkan detail produk (PUBLIC)
+ */
+router.get("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { data, error } = await supabase
+      .from("products")
+      .select("*")
+      .eq("id", parseInt(id))
+      .single();
+
+    if (error || !data) {
+      return res.status(404).json({
+        success: false,
+        message: "Produk tidak ditemukan"
+      });
+    }
+
+    res.json({
+      success: true,
+      data
+    });
+  } catch (err) {
+    console.error("❌ Server error:", err.message);
+    res.status(500).json({
+      success: false,
+      message: "Server error"
+    });
+  }
+});
+
+// ============ PROTECTED ENDPOINTS (ADMIN ONLY) ============
+
+/**
+ * POST /products
+ * Membuat produk baru (ADMIN ONLY)
+ */
+router.post("/", verifyToken, checkRole("admin"), async (req, res) => {
+  try {
+    const { title, author, category, price, stock, image } = req.body;
+
+    // Validasi input
+    if (!title || !author || !category || !price) {
+      return res.status(400).json({
+        success: false,
+        message: "Field wajib: title, author, category, price"
+      });
+    }
+
+    const { data, error } = await supabase
+      .from("products")
+      .insert([
+        {
+          title,
+          author,
+          category,
+          price: parseInt(price),
+          stock: stock ? parseInt(stock) : 0,
+          image: image || null,
+          created_at: new Date().toISOString()
+        }
+      ])
+      .select();
+
+    if (error) {
+      console.error("❌ Error creating product:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Gagal membuat produk"
+      });
+    }
+
+    res.status(201).json({
+      success: true,
+      message: "Produk berhasil dibuat",
+      data: data[0]
+    });
+  } catch (err) {
+    console.error("❌ Server error:", err.message);
+    res.status(500).json({
+      success: false,
+      message: "Server error"
+    });
+  }
+});
+
+/**
+ * PUT /products/:id
+ * Update produk (ADMIN ONLY)
+ */
+router.put("/:id", verifyToken, checkRole("admin"), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, author, category, price, stock, image } = req.body;
+
+    const updateData = {};
+    if (title) updateData.title = title;
+    if (author) updateData.author = author;
+    if (category) updateData.category = category;
+    if (price) updateData.price = parseInt(price);
+    if (stock !== undefined) updateData.stock = parseInt(stock);
+    if (image) updateData.image = image;
+    updateData.updated_at = new Date().toISOString();
+
+    const { data, error } = await supabase
+      .from("products")
+      .update(updateData)
+      .eq("id", parseInt(id))
+      .select();
+
+    if (error) {
+      console.error("❌ Error updating product:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Gagal update produk"
+      });
+    }
+
+    if (!data || data.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Produk tidak ditemukan"
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Produk berhasil diupdate",
+      data: data[0]
+    });
+  } catch (err) {
+    console.error("❌ Server error:", err.message);
+    res.status(500).json({
+      success: false,
+      message: "Server error"
+    });
+  }
+});
+
+/**
+ * DELETE /products/:id
+ * Hapus produk (ADMIN ONLY)
+ */
+router.delete("/:id", verifyToken, checkRole("admin"), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { error } = await supabase
+      .from("products")
+      .delete()
+      .eq("id", parseInt(id));
+
+    if (error) {
+      console.error("❌ Error deleting product:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Gagal hapus produk"
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Produk berhasil dihapus"
+    });
+  } catch (err) {
+    console.error("❌ Server error:", err.message);
+    res.status(500).json({
+      success: false,
+      message: "Server error"
+    });
+  }
+});
+
+module.exports = router;
