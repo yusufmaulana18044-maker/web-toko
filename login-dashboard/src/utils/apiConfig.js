@@ -5,9 +5,10 @@ const getApiUrl = () => {
     return process.env.REACT_APP_API_URL || 'http://localhost:5000';
   }
 
-  // In production on Vercel, use relative paths (same domain)
-  // API routes are at /api/* on Vercel
-  return '';
+  // In production on Vercel, use local backend server
+  // Make sure to set REACT_APP_API_URL in Vercel environment variables
+  // Format: http://YOUR_LOCAL_SERVER_IP:5000 or https://your-domain.com
+  return process.env.REACT_APP_API_URL || 'http://localhost:5000';
 };
 
 export const API_BASE_URL = getApiUrl();
