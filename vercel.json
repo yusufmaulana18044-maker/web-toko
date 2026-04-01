@@ -2,17 +2,5 @@
   "version": 2,
   "buildCommand": "npm run build",
   "outputDirectory": "login-dashboard/build",
-  "installCommand": "npm install:all",
-  "env": {
-    "SUPABASE_URL": "@SUPABASE_URL",
-    "SUPABASE_ANON_KEY": "@SUPABASE_ANON_KEY",
-    "JWT_SECRET": "@JWT_SECRET",
-    "NODE_ENV": "production"
-  },
-  "functions": {
-    "api/**/*.js": {
-      "memory": 1024,
-      "maxDuration": 30
-    }
-  }
+  "installCommand": "npm install:all"
 }
