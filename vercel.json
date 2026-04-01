@@ -1,12 +1,64 @@
 {
   "version": 2,
-  "installCommand": "npm --prefix login-dashboard ci",
   "buildCommand": "npm --prefix login-dashboard run build",
   "outputDirectory": "login-dashboard/build",
-  "rewrites": [
+  "installCommand": "npm install && cd login-dashboard && npm install",
+  "env": {
+    "NODE_ENV": "production",
+    "DATABASE_URL": "@database_url"
+  },
+  "functions": {
+    "backend/**/*.js": {
+      "runtime": "nodejs20.x",
+      "maxDuration": 30
+    }
+  },
+  "builds": [
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "src": "backend/index.js",
+      "use": "@vercel/node",
+      "config": {
+        "zeroConfig": true,
+        "includeFiles": "backend/**"
+      }
+    },
+    {
+      "src": "login-dashboard/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "login-dashboard/build"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/auth/(.*)",
+      "dest": "backend/index.js"
+    },
+    {
+      "src": "/products(.*)",
+      "dest": "backend/index.js"
+    },
+    {
+      "src": "/categories(.*)",
+      "dest": "backend/index.js"
+    },
+    {
+      "src": "/transactions(.*)",
+      "dest": "backend/index.js"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "backend/index.js"
+    },
+    {
+      "src": "/users(.*)",
+      "dest": "backend/index.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "login-dashboard/build/index.html",
+      "status": 200
     }
   ]
 }
