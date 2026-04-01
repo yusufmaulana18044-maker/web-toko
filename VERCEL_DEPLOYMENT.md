@@ -1,53 +1,139 @@
-# VERCEL DEPLOYMENT GUIDE
+# 📦 VERCEL DEPLOYMENT GUIDE - Frontend + Backend (Semua di Vercel)
 
-## Langkah 1: Persiapan GitHub
-1. Pastikan project sudah di-push ke GitHub dengan struktur:
-   ```
-   your-repo/
-   ├── login-dashboard/
-   ├── backend/
-   ├── package.json
-   └── vercel.json
-   ```
+## 🎯 Struktur Aplikasi
 
-## Langkah 2: Setup Vercel CLI (Optional)
-```bash
-npm install -g vercel
+```
+Vercel (1 Domain)
+├── Frontend (React) → login-dashboard/build/
+├── Backend API (Serverless) → api/
+└── Database (Supabase External)
 ```
 
-## Langkah 3: Deploy ke Vercel (3 Cara)
+**URL Production:**
+```
+Frontend: https://your-app.vercel.app
+API: https://your-app.vercel.app/api/
+Database: Supabase Cloud
+```
 
-### Cara 1: Via Dashboard (Paling Mudah)
-1. Buka https://vercel.com/dashboard
-2. Klik "Add New" → "Project"
-3. Import repository GitHub
-4. Configure:
-   - Framework: Create React App
-   - Root Directory: `login-dashboard`
-   - Build Command: `npm run build`
-   - Output Directory: `build`
-5. Tambah Environment Variable:
-   - Key: `REACT_APP_API_URL`
-   - Value: `https://your-backend-url` (Backend URL dari Supabase atau server lain)
-6. Deploy!
+---
 
-### Cara 2: Via Vercel CLI
+## 📋 STEP 1: Persiapan Lokal
+
+### 1.1 Test Backend Lokal
 ```bash
-# Di root directory project
+cd backend
+npm start
+```
+Verifikasi bisa login dengan `admin`/`admin123` di `http://localhost:5000/auth/login`
+
+### 1.2 Test Frontend Lokal
+```bash
 cd login-dashboard
-vercel
-# Ikuti prompt dan ikuti konfigurasi di atas
+npm start
+```
+Buka `http://localhost:3000` dan test login
+
+### 1.3 Commit Semua
+```bash
+git add .
+git commit -m "Ready for Vercel deployment - FE+BE in one domain"
+git push origin main
 ```
 
-### Cara 3: Auto Deploy (Recommended)
-- Setelah connect ke GitHub, setiap push ke branch utama akan auto-deploy
+---
 
-## Langkah 4: Update Backend URL
+## 🚀 STEP 2: Deploy Frontend + Backend ke Vercel
 
-Setelah deploy, Vercel akan memberikan URL (misal: `https://your-project.vercel.app`)
+### 2.1 Import Project ke Vercel
+1. Buka https://vercel.com
+2. Login dengan GitHub
+3. Klik "Add New Project" → "Import Git Repository"
+4. Cari & pilih repo `web-toko`
 
-Ganti `REACT_APP_API_URL` di Vercel Environment Variables dengan:
-- Development: `http://localhost:5000` (lokal)
+### 2.2 Configure Build Settings
+Saat import, SET INI:
+
+| Setting | Value |
+|---------|-------|
+| **Framework** | Other |
+| **Root Directory** | `.` (root) |
+| **Build Command** | `npm run build` |
+| **Output Directory** | `login-dashboard/build` |
+| **Install Command** | `npm install:all` |
+
+### 2.3 Set Environment Variables
+
+Di **Settings → Environment Variables**, TAMBAHKAN 4 variables:
+
+```
+SUPABASE_URL              https://rmhxqvgltrbrqefshhjol.supabase.co
+SUPABASE_ANON_KEY         eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtaHhxdmdzdHJicnFlZnNoam9sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTc3NTksImV4cCI6MjA5MDQ3Mzc1OX0.6thLCuj6S-vahkGfY-RXjX9RJ3f9rQk0t_t-J_-46ls
+JWT_SECRET                rahasia_jwt_super_aman_123456
+NODE_ENV                  production
+```
+
+### 2.4 Deploy!
+Klik **Deploy** dan tunggu ~10 menit.
+
+Hasil: `https://your-project.vercel.app`
+
+---
+
+## ✅ Testing Setelah Deploy
+
+### 3.1 Test Frontend
+```
+https://your-project.vercel.app
+```
+Halaman login harus muncul.
+
+### 3.2 Test API Health
+```
+GET https://your-project.vercel.app/api
+```
+Harus response OK.
+
+### 3.3 Test Login
+Buka login page dan test:
+- Username: `admin`
+- Password: `admin123`
+
+---
+
+## 🆘 Troubleshooting
+
+### ❌ Build Failed
+```bash
+# Test lokal dulu
+npm run build
+npm install:all
+```
+
+### ❌ "Cannot GET /api/auth/login"
+- Verifikasi file `api/auth/login.js` ada
+- Cek Vercel Logs
+
+### ❌ "Gagal koneksi ke server"
+- Frontend API URL sudah auto-fix ke sama domain
+- Check browser console untuk actual URL
+
+### ❌ Supabase Connection Error
+- Verifikasi env vars di Vercel: Settings → Environment Variables
+- Pastikan semua 4 variables terbaca
+- Redeploy: Deployments → Redeploy
+
+---
+
+## 🔄 Continuous Deployment
+
+Setiap push ke `main` auto-deploy:
+
+```bash
+git push origin main
+```
+
+---
 - Production: `https://your-backend-api.com` (backend Supabase/server lain)
 
 ## Langkah 5: CORS Configuration (Penting!)

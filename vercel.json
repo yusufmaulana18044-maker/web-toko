@@ -2,5 +2,15 @@
   "version": 2,
   "installCommand": "npm --prefix login-dashboard ci",
   "buildCommand": "npm --prefix login-dashboard run build",
-  "outputDirectory": "login-dashboard/build"
+  "outputDirectory": "login-dashboard/build",
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
 }
