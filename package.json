@@ -5,6 +5,7 @@
   "main": "backend/server-supabase.js",
   "scripts": {
     "install:all": "npm install && cd backend && npm install && cd ../login-dashboard && npm install",
+    "postinstall": "cd backend && npm install && cd ../login-dashboard && npm install",
     "start": "npm run start:backend",
     "start:backend": "cd backend && npm start",
     "start:frontend": "cd login-dashboard && npm start",
