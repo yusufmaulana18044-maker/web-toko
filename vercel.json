@@ -3,7 +3,6 @@
   "buildCommand": "npm run build",
   "outputDirectory": "login-dashboard/build",
   "installCommand": "npm install:all",
-  "nodeVersion": "18.x",
   "env": {
     "SUPABASE_URL": "@SUPABASE_URL",
     "SUPABASE_ANON_KEY": "@SUPABASE_ANON_KEY",
