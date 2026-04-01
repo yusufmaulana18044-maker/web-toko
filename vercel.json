@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "buildCommand": "npm run build",
-  "outputDirectory": "login-dashboard/build",
-  "installCommand": "npm install:all"
+  "buildCommand": "cd login-dashboard && npm install && npm run build",
+  "outputDirectory": "login-dashboard/build"
 }
