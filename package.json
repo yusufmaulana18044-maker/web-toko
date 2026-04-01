@@ -23,13 +23,7 @@
   "author": "Web Toko Team",
   "license": "ISC",
   "engines": {
-    "node": ">=14.0.0",
-    "npm": ">=6.0.0"
-  },
-  "dependencies": {
-    "node-fetch": "^2.7.0",
-    "bcryptjs": "^2.4.3",
-    "jsonwebtoken": "^9.1.0",
-    "@supabase/supabase-js": "^2.38.1"
+    "node": "20.x",
+    "npm": ">=9.0.0"
   }
 }
