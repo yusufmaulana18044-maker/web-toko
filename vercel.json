@@ -1,5 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "npm --prefix login-dashboard install && npm --prefix login-dashboard run build",
+  "installCommand": "npm --prefix login-dashboard ci",
+  "buildCommand": "npm --prefix login-dashboard run build",
   "outputDirectory": "login-dashboard/build"
 }
