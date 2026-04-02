@@ -16,22 +16,51 @@ const { verifyToken, checkRole } = require("../middleware/auth");
  */
 router.get("/", async (req, res) => {
   try {
+    // Fetch products WITH category data via join
     const { data, error } = await supabase
       .from("products")
-      .select("id, title, author, category, price, stock, image")
+      .select(`
+        id,
+        title,
+        author,
+        category_id,
+        price,
+        stock,
+        image,
+        created_at,
+        categories:category_id(id, name, slug)
+      `)
       .order("id", { ascending: true });
 
     if (error) {
       console.error("❌ Error fetching products:", error);
       return res.status(500).json({
         success: false,
-        message: "Gagal mengambil data produk"
+        message: "Gagal mengambil data produk",
+        error: error.message
       });
     }
 
+    // Transform data to include category name at root level
+    const transformedData = (data || []).map(product => {
+      const categoryData = Array.isArray(product.categories) ? product.categories[0] : product.categories;
+      return {
+        id: product.id,
+        title: product.title,
+        author: product.author,
+        category_id: product.category_id,
+        category: categoryData?.name || `Category ${product.category_id}`,
+        category_name: categoryData?.name || `Category ${product.category_id}`,
+        price: product.price,
+        stock: product.stock,
+        image: product.image,
+        created_at: product.created_at
+      };
+    });
+
     res.json({
       success: true,
-      data: data || []
+      data: transformedData
     });
   } catch (err) {
     console.error("❌ Server error:", err.message);
