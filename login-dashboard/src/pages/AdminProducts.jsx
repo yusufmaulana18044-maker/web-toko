@@ -40,11 +40,14 @@ function AdminProducts() {
   const fetchProducts = async () => {
     try {
       const res = await fetch("http://localhost:5000/products");
-      const data = await res.json();
-      setProducts(data);
+      const response = await res.json();
+      // API returns {success: true, data: [...]}
+      const productData = response.data || response || [];
+      setProducts(Array.isArray(productData) ? productData : []);
       setLoading(false);
     } catch (err) {
       setError("Gagal load produk");
+      setProducts([]);
       setLoading(false);
     }
   };
