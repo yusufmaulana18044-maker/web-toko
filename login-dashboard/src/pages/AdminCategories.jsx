@@ -83,11 +83,11 @@ function AdminCategories() {
         body: JSON.stringify(formData)
       });
 
-      if (!res.ok) {
-        throw new Error(`HTTP Error: ${res.status} ${res.statusText}`);
-      }
-
       const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || `HTTP Error: ${res.status} ${res.statusText}`);
+      }
 
       if (data.success) {
         setSuccess(data.message || `Kategori berhasil ${editingId ? "diupdate" : "ditambah"}`);
@@ -104,35 +104,47 @@ function AdminCategories() {
   };
 
   const handleEdit = (category) => {
-    setFormData(category);
+    setError("");
+    setSuccess("");
     setEditingId(category.id);
+    setFormData({
+      name: category.name,
+      slug: category.slug,
+      description: category.description || ""
+    });
     setShowForm(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm("Yakin ingin menghapus kategori ini?")) {
-      try {
-        const res = await fetch(`http://localhost:5000/categories/${id}`, {
-          method: "DELETE",
-          headers: {
-            "Authorization": `Bearer ${token}`
-          }
-        });
+    if (!window.confirm("Yakin ingin menghapus kategori ini?")) return;
+    
+    setError("");
+    setSuccess("");
 
-        if (!res.ok) {
-          throw new Error(`HTTP Error: ${res.status} ${res.statusText}`);
+    try {
+      const res = await fetch(`http://localhost:5000/categories/${id}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}`
         }
+      });
 
-        const data = await res.json();
-        if (data.success) {
-          setSuccess("Kategori berhasil dihapus");
-          fetchCategories();
-        } else {
-          setError(data.message);
-        }
-      } catch (err) {
-        setError("Error: " + err.message);
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || `HTTP Error: ${res.status}`);
       }
+
+      if (data.success) {
+        setSuccess("Kategori berhasil dihapus");
+        await fetchCategories();
+      } else {
+        setError(data.message || "Gagal hapus kategori");
+      }
+    } catch (err) {
+      console.error("Delete error:", err);
+      setError("Error: " + err.message);
     }
   };
 

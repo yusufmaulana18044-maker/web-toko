@@ -98,8 +98,7 @@ router.post("/", verifyToken, checkRole("admin"), async (req, res) => {
         {
           name,
           slug: slug.toLowerCase().replace(/\s+/g, "-"),
-          description: description || null,
-          created_at: new Date().toISOString()
+          description: description || null
         }
       ])
       .select();
@@ -108,7 +107,7 @@ router.post("/", verifyToken, checkRole("admin"), async (req, res) => {
       console.error("❌ Error creating category:", error);
       return res.status(500).json({
         success: false,
-        message: "Gagal membuat kategori"
+        message: "Gagal membuat kategori: " + error.message
       });
     }
 
@@ -139,7 +138,8 @@ router.put("/:id", verifyToken, checkRole("admin"), async (req, res) => {
     if (name) updateData.name = name;
     if (slug) updateData.slug = slug.toLowerCase().replace(/\s+/g, "-");
     if (description !== undefined) updateData.description = description;
-    updateData.updated_at = new Date().toISOString();
+
+    console.log("📝 Updating category", id, "with:", updateData);
 
     const { data, error } = await supabase
       .from("categories")
@@ -151,7 +151,7 @@ router.put("/:id", verifyToken, checkRole("admin"), async (req, res) => {
       console.error("❌ Error updating category:", error);
       return res.status(500).json({
         success: false,
-        message: "Gagal update kategori"
+        message: "Gagal update kategori: " + error.message
       });
     }
 
@@ -193,7 +193,7 @@ router.delete("/:id", verifyToken, checkRole("admin"), async (req, res) => {
       console.error("❌ Error deleting category:", error);
       return res.status(500).json({
         success: false,
-        message: "Gagal hapus kategori"
+        message: "Gagal hapus kategori: " + error.message
       });
     }
 
