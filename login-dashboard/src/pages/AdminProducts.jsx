@@ -99,81 +99,18 @@ function AdminProducts() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
-    setSuccess("");
-
-    if (!formData.title || !formData.author || !formData.category || !formData.price) {
-      setError("Semua field wajib diisi!");
-      return;
-    }
-
-    try {
-      const method = editingId ? "PUT" : "POST";
-      const url = editingId 
-        ? `http://localhost:5000/products/${editingId}`
-        : "http://localhost:5000/products";
-
-      const res = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify(formData)
-      });
-
-      // Check if response is ok before parsing JSON
-      if (!res.ok) {
-        throw new Error(`HTTP Error: ${res.status} ${res.statusText}`);
-      }
-
-      const data = await res.json();
-
-      if (data.success) {
-        setSuccess(data.message || `Produk berhasil ${editingId ? "diupdate" : "ditambah"}`);
-        setFormData({ title: "", author: "", category: "", price: "", image: "" });
-        setEditingId(null);
-        setShowForm(false);
-        fetchProducts();
-      } else {
-        setError(data.message || "Gagal simpan produk");
-      }
-    } catch (err) {
-      setError("Error: " + err.message);
-    }
+    setError("Fitur edit/add produk sedang dalam perbaikan");
+    return;
   };
 
   const handleEdit = (product) => {
-    setFormData(product);
-    setEditingId(product.id);
-    setShowForm(true);
+    setError("Fitur edit produk sedang dalam perbaikan");
+    return;
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm("Yakin ingin menghapus produk ini?")) {
-      try {
-        const res = await fetch(`http://localhost:5000/products/${id}`, {
-          method: "DELETE",
-          headers: {
-            "Authorization": `Bearer ${token}`
-          }
-        });
-
-        if (!res.ok) {
-          throw new Error(`HTTP Error: ${res.status} ${res.statusText}`);
-        }
-
-        const data = await res.json();
-        if (data.success) {
-          setSuccess("Produk berhasil dihapus");
-          fetchProducts();
-        } else {
-          setError(data.message);
-        }
-      } catch (err) {
-        setError("Error: " + err.message);
-      }
-    }
+    setError("Fitur edit/add/delete produk sedang dalam perbaikan");
+    return;
   };
 
   const handleCancel = () => {
