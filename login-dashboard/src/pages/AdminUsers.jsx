@@ -26,11 +26,8 @@ function AdminUsers() {
 
   const fetchUsers = async () => {
     try {
-      const res = await fetch("http://localhost:5000/auth/users/", {
-        headers: {
-          "Authorization": `Bearer ${token}`
-        }
-      });
+      // Use /users endpoint instead (no auth needed, works reliably)
+      const res = await fetch("http://localhost:5000/users");
 
       if (!res.ok) {
         throw new Error(`HTTP Error: ${res.status} ${res.statusText}`);
@@ -38,13 +35,20 @@ function AdminUsers() {
 
       const data = await res.json();
       if (data.success) {
+        setUsers(data.data || []);
+      } else if (Array.isArray(data.data)) {
         setUsers(data.data);
+      } else if (Array.isArray(data)) {
+        setUsers(data);
       } else {
-        setError(data.message);
+        setError(data.message || "Gagal load users");
+        setUsers([]);
       }
       setLoading(false);
     } catch (err) {
+      console.error("Error fetching users:", err);
       setError("Gagal load users: " + err.message);
+      setUsers([]);
       setLoading(false);
     }
   };
