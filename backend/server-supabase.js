@@ -19,6 +19,7 @@ const app = express();
 // Configure CORS for development and production
 const corsOptions = {
   origin: function (origin, callback) {
+    // Allowed origins
     const allowedOrigins = [
       'http://localhost:3000',
       'http://localhost:5000',
@@ -28,9 +29,15 @@ const corsOptions = {
       process.env.FRONTEND_URL,
     ].filter(Boolean);
 
-    if (!origin || allowedOrigins.includes(origin)) {
+    // For development: allow any origin
+    // For production: restrict to specific domains
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    
+    if (!origin || isDevelopment || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
+      console.error(`CORS blocked origin: ${origin}`);
+      console.error(`Allowed origins: ${allowedOrigins.join(', ')}`);
       callback(new Error('Not allowed by CORS'));
     }
   },
