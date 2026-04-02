@@ -54,13 +54,77 @@ function AdminUsers() {
   };
 
   const handleUpdateRole = async () => {
-    setError("Fitur update role sedang dalam perbaikan");
-    return;
+    if (!selectedUser || !selectedRole) {
+      setError("Pilih user dan role terlebih dahulu");
+      return;
+    }
+
+    setError("");
+    setSuccess("");
+
+    try {
+      const res = await fetch("http://localhost:5000/auth/update-role", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          user_id: parseInt(selectedUser),
+          role: selectedRole
+        })
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || `HTTP Error: ${res.status}`);
+      }
+
+      const data = await res.json();
+      if (data.success) {
+        setSuccess("Role berhasil diubah");
+        setSelectedUser("");
+        setSelectedRole("");
+        await fetchUsers();
+      } else {
+        setError(data.message || "Gagal mengubah role");
+      }
+    } catch (err) {
+      setError("Error: " + err.message);
+    }
   };
 
   const handleDeleteUser = async (userId) => {
-    setError("Fitur delete user sedang dalam perbaikan");
-    return;
+    if (!window.confirm("Yakin ingin menghapus user ini?")) {
+      return;
+    }
+
+    setError("");
+    setSuccess("");
+
+    try {
+      const res = await fetch(`http://localhost:5000/auth/users/${userId}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || `HTTP Error: ${res.status}`);
+      }
+
+      const data = await res.json();
+      if (data.success) {
+        setSuccess("User berhasil dihapus");
+        await fetchUsers();
+      } else {
+        setError(data.message || "Gagal menghapus user");
+      }
+    } catch (err) {
+      setError("Error: " + err.message);
+    }
   };
 
   if (loading) return <div className="loading">Loading...</div>;

@@ -113,15 +113,27 @@ router.get("/:id", async (req, res) => {
  */
 router.post("/", verifyToken, checkRole("admin"), async (req, res) => {
   try {
-    const { title, author, category, price, stock, image } = req.body;
+    const { title, author, category_id, price, stock, image } = req.body;
+
+    // Map category to category_id if category is sent
+    const category = req.body.category || req.body.category_id;
 
     // Validasi input
-    if (!title || !author || !category || !price) {
+    if (!title || !author || !category) {
       return res.status(400).json({
         success: false,
-        message: "Field wajib: title, author, category, price"
+        message: "Field wajib: title, author, category_id (atau category), price"
       });
     }
+
+    if (!price) {
+      return res.status(400).json({
+        success: false,
+        message: "Price wajib diisi"
+      });
+    }
+
+    console.log("➕ Creating new product:", { title, author, category_id: category || category_id, price });
 
     const { data, error } = await supabase
       .from("products")
@@ -129,7 +141,7 @@ router.post("/", verifyToken, checkRole("admin"), async (req, res) => {
         {
           title,
           author,
-          category,
+          category_id: parseInt(category || category_id),
           price: parseInt(price),
           stock: stock ? parseInt(stock) : 0,
           image: image || null,
@@ -142,7 +154,8 @@ router.post("/", verifyToken, checkRole("admin"), async (req, res) => {
       console.error("❌ Error creating product:", error);
       return res.status(500).json({
         success: false,
-        message: "Gagal membuat produk"
+        message: "Gagal membuat produk",
+        error: error.message
       });
     }
 
@@ -155,7 +168,7 @@ router.post("/", verifyToken, checkRole("admin"), async (req, res) => {
     console.error("❌ Server error:", err.message);
     res.status(500).json({
       success: false,
-      message: "Server error"
+      message: "Server error: " + err.message
     });
   }
 });
@@ -167,16 +180,21 @@ router.post("/", verifyToken, checkRole("admin"), async (req, res) => {
 router.put("/:id", verifyToken, checkRole("admin"), async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, author, category, price, stock, image } = req.body;
+    const { title, author, category_id, price, stock, image } = req.body;
+
+    // Map category to category_id if category is sent
+    const category = req.body.category || req.body.category_id;
 
     const updateData = {};
     if (title) updateData.title = title;
     if (author) updateData.author = author;
-    if (category) updateData.category = category;
+    if (category_id || category) updateData.category_id = parseInt(category_id || category);
     if (price) updateData.price = parseInt(price);
     if (stock !== undefined) updateData.stock = parseInt(stock);
     if (image) updateData.image = image;
     updateData.updated_at = new Date().toISOString();
+
+    console.log("📝 Updating product", id, "with:", updateData);
 
     const { data, error } = await supabase
       .from("products")
@@ -188,7 +206,8 @@ router.put("/:id", verifyToken, checkRole("admin"), async (req, res) => {
       console.error("❌ Error updating product:", error);
       return res.status(500).json({
         success: false,
-        message: "Gagal update produk"
+        message: "Gagal update produk",
+        error: error.message
       });
     }
 
@@ -208,7 +227,7 @@ router.put("/:id", verifyToken, checkRole("admin"), async (req, res) => {
     console.error("❌ Server error:", err.message);
     res.status(500).json({
       success: false,
-      message: "Server error"
+      message: "Server error: " + err.message
     });
   }
 });

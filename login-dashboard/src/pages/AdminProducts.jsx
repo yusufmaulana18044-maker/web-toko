@@ -99,18 +99,100 @@ function AdminProducts() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("Fitur edit/add produk sedang dalam perbaikan");
-    return;
+    setError("");
+    setSuccess("");
+
+    if (!formData.title || !formData.author || !formData.category || !formData.price) {
+      setError("Semua field harus diisi");
+      return;
+    }
+
+    try {
+      const method = editingId ? "PUT" : "POST";
+      const url = editingId
+        ? `http://localhost:5000/products/${editingId}`
+        : "http://localhost:5000/products";
+
+      const res = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          title: formData.title,
+          author: formData.author,
+          category_id: formData.category, // Send as category_id
+          price: formData.price,
+          stock: formData.stock,
+          image: formData.image
+        })
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || `HTTP Error: ${res.status}`);
+      }
+
+      const data = await res.json();
+      if (data.success) {
+        setSuccess(editingId ? "Produk berhasil diupdate" : "Produk berhasil ditambah");
+        await fetchProducts();
+        setShowForm(false);
+        setEditingId(null);
+        setFormData({ title: "", author: "", category: "", price: "", stock: "", image: "" });
+      } else {
+        setError(data.message || "Gagal menyimpan produk");
+      }
+    } catch (err) {
+      setError("Error: " + err.message);
+    }
   };
 
   const handleEdit = (product) => {
-    setError("Fitur edit produk sedang dalam perbaikan");
-    return;
+    setEditingId(product.id);
+    setFormData({
+      title: product.title,
+      author: product.author,
+      category: product.category_id || product.category,
+      price: product.price.toString(),
+      stock: product.stock.toString(),
+      image: product.image || ""
+    });
+    setShowForm(true);
   };
 
   const handleDelete = async (id) => {
-    setError("Fitur edit/add/delete produk sedang dalam perbaikan");
-    return;
+    if (!window.confirm("Yakin ingin menghapus produk ini?")) {
+      return;
+    }
+
+    setError("");
+    setSuccess("");
+
+    try {
+      const res = await fetch(`http://localhost:5000/products/${id}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || `HTTP Error: ${res.status}`);
+      }
+
+      const data = await res.json();
+      if (data.success) {
+        setSuccess("Produk berhasil dihapus");
+        await fetchProducts();
+      } else {
+        setError(data.message || "Gagal menghapus produk");
+      }
+    } catch (err) {
+      setError("Error: " + err.message);
+    }
   };
 
   const handleCancel = () => {
