@@ -60,8 +60,10 @@ function Dashboard() {
     const fetchProducts = () => {
       fetch("http://localhost:5000/products")
         .then((res) => res.json())
-        .then((data) => {
-          setBooks(data);
+        .then((response) => {
+          // API returns {success: true, data: [...]}
+          const productData = response.data || response || [];
+          setBooks(Array.isArray(productData) ? productData : []);
           setLoading(false);
         })
         .catch((err) => {
