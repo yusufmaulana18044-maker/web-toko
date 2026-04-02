@@ -144,8 +144,7 @@ router.post("/", verifyToken, checkRole("admin"), async (req, res) => {
           category_id: parseInt(category || category_id),
           price: parseInt(price),
           stock: stock ? parseInt(stock) : 0,
-          image: image || null,
-          created_at: new Date().toISOString()
+          image: image || null
         }
       ])
       .select();
@@ -192,7 +191,6 @@ router.put("/:id", verifyToken, checkRole("admin"), async (req, res) => {
     if (price) updateData.price = parseInt(price);
     if (stock !== undefined) updateData.stock = parseInt(stock);
     if (image) updateData.image = image;
-    updateData.updated_at = new Date().toISOString();
 
     console.log("📝 Updating product", id, "with:", updateData);
 
