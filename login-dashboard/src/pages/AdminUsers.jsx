@@ -54,74 +54,13 @@ function AdminUsers() {
   };
 
   const handleUpdateRole = async () => {
-    if (!selectedUser || !selectedRole) {
-      setError("Pilih user dan role terlebih dahulu");
-      return;
-    }
-
-    try {
-      const selectedUserData = users.find(u => u.id === parseInt(selectedUser));
-      
-      const res = await fetch("http://localhost:5000/auth/update-role", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          username: selectedUserData.username,
-          new_role: selectedRole
-        })
-      });
-
-      if (!res.ok) {
-        throw new Error(`HTTP Error: ${res.status} ${res.statusText}`);
-      }
-
-      const data = await res.json();
-      if (data.success) {
-        setSuccess(data.message);
-        setSelectedRole("");
-        setSelectedUser("");
-        fetchUsers();
-      } else {
-        setError(data.message);
-      }
-    } catch (err) {
-      setError("Error: " + err.message);
-    }
+    setError("Fitur update role sedang dalam perbaikan");
+    return;
   };
 
   const handleDeleteUser = async (userId) => {
-    if (userId === user.id) {
-      setError("Anda tidak bisa menghapus akun sendiri");
-      return;
-    }
-
-    if (window.confirm("Yakin ingin menghapus user ini?")) {
-      try {
-        const res = await fetch(`http://localhost:5000/auth/users/${userId}`, {
-          method: "DELETE",
-          headers: {
-            "Authorization": `Bearer ${token}`
-          }
-        });
-
-        if (!res.ok) {
-          throw new Error(`HTTP Error: ${res.status} ${res.statusText}`);
-        }
-
-        const data = await res.json();
-        if (data.success) {
-          setSuccess(data.message);
-          fetchUsers();
-        } else {
-          setError(data.message);
-        }
-      } catch (err) {
-        setError("Error: " + err.message);
-      }
-    }
+    setError("Fitur delete user sedang dalam perbaikan");
+    return;
   };
 
   if (loading) return <div className="loading">Loading...</div>;
